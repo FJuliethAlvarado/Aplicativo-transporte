@@ -42,7 +42,7 @@ Desarrollar una plataforma web que permita visualizar en tiempo real las rutas d
 
 - Backend: Python (Flask)  
 - Frontend: HTML, CSS, JavaScript  
-- Base de datos: Pendiente (SQLite o MySQL)  
+- Base de datos: SQLite 
 - Hosting: Render  
 
 ---
@@ -57,7 +57,7 @@ proyecto/
 ├── templates/
 │   ├── login.html
 │   ├── register.html
-│   └── mapa.html
+│   └── usuario.html
 │
 ├── static/
 │   ├── style.css
