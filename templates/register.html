@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Registro</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='register.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+
+<body class="fade-page">
+
+<div class="form-container">
+    <h2>Crear cuenta</h2>
+
+    
+    <form id="registerForm" method="POST" action="/register">
+
+        <!-- Nombre -->
+        <div class="input-group">
+            <i class="fa fa-user"></i>
+            <input type="text" name="nombre" placeholder="Nombre completo" required>
+        </div>
+
+        <!-- Correo -->
+        <div class="input-group">
+            <i class="fa fa-envelope"></i>
+            <input type="email" name="correo" placeholder="Correo electrónico" required>
+        </div>
+
+        <!-- Contraseña -->
+        <div class="input-group password-group">
+            <i class="fa fa-lock"></i>
+            <input type="password" name="password" id="pass1" placeholder="Contraseña" required>
+            <i class="fa fa-eye toggle-password" onclick="togglePassword('pass1')"></i>
+        </div>
+
+        <!-- Confirmar contraseña -->
+        <div class="input-group password-group">
+            <i class="fa fa-lock"></i>
+            <input type="password" id="pass2" placeholder="Confirmar contraseña" required>
+            <i class="fa fa-eye toggle-password" onclick="togglePassword('pass2')"></i>
+        </div>
+
+        <!-- Tipo usuario -->
+        <p class="label">Tipo de usuario</p>
+
+        <div class="user-type">
+            <div class="option active" data-user-type="usuario">
+                <i class="fa fa-user"></i>
+                <span>Usuario</span>
+            </div>
+
+            <div class="option" data-user-type="conductor">
+                <i class="fa fa-car"></i>
+                <span>Conductor</span>
+            </div>
+        </div>
+
+        
+        <input type="hidden" id="userType" name="userType" value="usuario">
+
+        <button type="submit">Registrarse</button>
+
+        <p class="login-link">
+            ¿Ya tienes cuenta?
+            <a href="{{ url_for('login') }}">Inicia sesión</a>
+        </p>
+    </form>
+</div>
+
+<script>
+// ===== MOSTRAR / OCULTAR CONTRASEÑA =====
+function togglePassword(id) {
+    const input = document.getElementById(id);
+    input.type = input.type === "password" ? "text" : "password";
+}
+
+// ===== SELECCIÓN TIPO USUARIO =====
+document.addEventListener('DOMContentLoaded', function() {
+
+    const options = document.querySelectorAll('.option');
+    const userTypeInput = document.getElementById('userType');
+
+    options.forEach(option => {
+        option.addEventListener('click', function() {
+
+            options.forEach(opt => opt.classList.remove('active'));
+            this.classList.add('active');
+
+            userTypeInput.value = this.getAttribute('data-user-type');
+        });
+    });
+
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,178 @@
+/* ===== REGISTER PAGE (STYLE CONSISTENTE LOGIN) ===== */
+
+body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: url("fondo1.png");
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* CONTENEDOR PRINCIPAL */
+.form-container {
+    width: 380px;
+    padding: 30px;
+    background: rgb(255, 254, 254);
+    backdrop-filter: blur(16px);
+    border-radius: 22px;
+    box-shadow: 0 10px 35px rgba(0,0,0,0.45);
+    color: rgb(0, 0, 0);
+    animation: fadeUp 0.6s ease;
+}
+
+/* TITULO */
+.form-container h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    font-weight: 600;
+}
+
+/* ANIMACIÓN ENTRADA */
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(25px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ===== INPUTS ===== */
+.input-group {
+    position: relative;
+    margin-bottom: 18px;
+}
+
+/* INPUT */
+.input-group input {
+    width: 80%;
+    padding: 14px 42px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: transparent;
+    color: rgb(24, 24, 24);
+    outline: none;
+    transition: 0.3s;
+}
+
+/* FOCUS ESTILO APP */
+.input-group input:focus {
+    border-color: #22c55e;
+    box-shadow: 0 0 12px rgba(34,197,94,0.25);
+}
+
+/* ICONO IZQUIERDO */
+.input-group i.fa-user,
+.input-group i.fa-lock,
+.input-group i.fa-envelope {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(0, 0, 0, 0.647);
+}
+
+/* ICONO OJO */
+.toggle-password {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: rgba(2, 2, 2, 0.6);
+}
+
+/* LABELS */
+.input-group label {
+    position: absolute;
+    left: 42px;
+    top: 14px;
+    color: rgba(255,255,255,0.5);
+    font-size: 14px;
+    transition: 0.3s;
+    pointer-events: none;
+}
+
+/* FLOAT LABEL */
+.input-group input:focus + label,
+.input-group input:not(:placeholder-shown) + label {
+    top: -9px;
+    font-size: 11px;
+    color: #22c55e;
+    background: rgba(15,23,42,0.9);
+    padding: 0 6px;
+}
+
+/* ===== TIPO USUARIO ===== */
+.label {
+    margin-top: 10px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: rgba(23, 22, 22, 0.7);
+}
+
+.user-type {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.option {
+    flex: 1;
+    padding: 12px;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.15);
+    cursor: pointer;
+    transition: 0.3s;
+    background: rgba(255,255,255,0.05);
+}
+
+.option i {
+    display: block;
+    margin-bottom: 5px;
+}
+
+/* ACTIVE */
+.option.active {
+    border-color: #22c55e;
+    background: rgba(34,197,94,0.15);
+}
+
+/* BOTÓN */
+button {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    background: #22c55e;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+button:hover {
+    background: #16a34a;
+    transform: translateY(-2px);
+}
+
+/* LINK LOGIN */
+.login-link {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 13px;
+}
+
+.login-link a {
+    color: #22c55e;
+    text-decoration: none;
+}
+
+.login-link a:hover {
+    text-decoration: underline;
+}

@@ -1,0 +1,483 @@
+/* ===== GENERAL ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+  background: linear-gradient(135deg, #f4f6f8 0%, #e9ecef 100%);
+  color: #333;
+  overflow-x: hidden;
+}
+
+/* ===== SCROLLBAR PERSONALIZADA ===== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2c3e50;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2ecc71;
+}
+
+/* ===== TOP BAR ===== */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #2c3e50;
+  color: white;
+  padding: 0 20px;
+  height: 60px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.topbar i {
+  font-size: 20px;
+  cursor: pointer;
+  margin: 0 10px;
+  transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.topbar i:hover {
+  color: #2ecc71;
+  transform: scale(1.1);
+}
+
+.search {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.95);
+  border-radius: 25px;
+  padding: 8px 15px;
+  max-width: 400px;
+  transition: all 0.3s ease;
+}
+
+.search:focus-within {
+  box-shadow: 0 0 0 2px #2ecc71;
+  background: white;
+}
+
+.search i {
+  color: #888;
+  margin-right: 10px;
+  font-size: 16px;
+}
+
+.search input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  background: transparent;
+}
+
+/* ===== PANEL LATERAL ===== */
+.sidebar, .notifications {
+  position: fixed;
+  top: 60px;
+  right: -320px;
+  width: 320px;
+  height: calc(100% - 60px);
+  background: linear-gradient(135deg, #ffffff 0%, #f9f9f9 100%);
+  border-left: 3px solid #2ecc71;
+  padding: 20px;
+  overflow-y: auto;
+  box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+  transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 900;
+}
+
+.sidebar.active, .notifications.active {
+  right: 0;
+}
+
+.sidebar h3, .notifications h3 {
+  margin-top: 0;
+  font-size: 20px;
+  color: #2c3e50;
+  border-bottom: 2px solid #2ecc71;
+  padding-bottom: 10px;
+  margin-bottom: 15px;
+}
+
+/* ===== MAPA ===== */
+#map {
+  position: absolute;
+  top: 60px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+}
+
+/* ===== BOTÓN CERRAR SESIÓN FLOTANTE ===== */
+.logout-btn {
+  position: fixed;
+  top: 75px;
+  left: 15px;
+  background: #e74c3c;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 25px;
+  cursor: pointer;
+  z-index: 950;
+  font-weight: 600;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logout-btn i {
+  font-size: 14px;
+}
+
+.logout-btn:hover {
+  background: #c0392b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+/* ===== BOTONES MAPA DERECHA ===== */
+.map-controls {
+  position: fixed;
+  top: 120px;
+  right: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 950;
+}
+
+.map-controls button {
+  background: #2ecc71;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  transition: all 0.3s ease;
+  width: 45px;
+  height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-controls button:hover {
+  background: #27ae60;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+
+.map-controls button:active {
+  transform: scale(0.95);
+}
+
+/* ===== CARDS INFERIORES ===== */
+.cards {
+  position: fixed;
+  bottom: 80px;
+  left: 15px;
+  display: flex;
+  gap: 12px;
+  z-index: 950;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(46, 204, 113, 0.2);
+}
+
+.card i {
+  font-size: 20px;
+  color: #2ecc71;
+  transition: transform 0.3s ease;
+}
+
+.card span {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.card:hover {
+  background: #2ecc71;
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(46, 204, 113, 0.2);
+}
+
+.card:hover i,
+.card:hover span {
+  color: white;
+}
+
+.card:hover i {
+  transform: scale(1.1);
+}
+
+/* ===== BOTTOM NAV ===== */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 65px;
+  background: #2c3e50;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  color: white;
+  z-index: 1000;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+}
+
+.bottom-nav div {
+  text-align: center;
+  flex: 1;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 8px 0;
+  position: relative;
+}
+
+.bottom-nav div i {
+  display: block;
+  font-size: 22px;
+  margin-bottom: 4px;
+  transition: transform 0.3s ease;
+}
+
+.bottom-nav div span {
+  font-size: 11px;
+  font-weight: 500;
+  transition: opacity 0.3s ease;
+}
+
+.bottom-nav div:hover {
+  background: rgba(46, 204, 113, 0.1);
+}
+
+.bottom-nav div:hover i {
+  transform: translateY(-3px);
+  color: #2ecc71;
+}
+
+.bottom-nav .active {
+  background: #2ecc71;
+  position: relative;
+}
+
+.bottom-nav .active::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30px;
+  height: 3px;
+  background: white;
+  border-radius: 3px;
+}
+
+/* Estilo especial para Cerrar sesión en bottom nav */
+.bottom-nav .logout {
+  background: #e74c3c;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.bottom-nav .logout::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.bottom-nav .logout:hover::before {
+  left: 100%;
+}
+
+.bottom-nav .logout:hover {
+  background: #c0392b;
+}
+
+.bottom-nav .logout i,
+.bottom-nav .logout span {
+  color: white;
+}
+
+/* ===== ANIMACIONES ===== */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.sidebar, .notifications {
+  animation: slideIn 0.3s ease;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .topbar {
+    padding: 0 10px;
+  }
+  
+  .search {
+    max-width: 200px;
+  }
+  
+  .sidebar, .notifications {
+    width: 280px;
+    right: -280px;
+  }
+  
+  .cards {
+    bottom: 75px;
+  }
+  
+  .card {
+    padding: 8px 12px;
+  }
+  
+  .card span {
+    font-size: 12px;
+  }
+  
+  .bottom-nav div i {
+    font-size: 18px;
+  }
+  
+  .bottom-nav div span {
+    font-size: 10px;
+  }
+  
+  .map-controls button {
+    width: 38px;
+    height: 38px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .search {
+    max-width: 150px;
+  }
+  
+  .search input {
+    font-size: 12px;
+  }
+  
+  .topbar i {
+    margin: 0 5px;
+  }
+  
+  .cards {
+    gap: 8px;
+  }
+  
+  .card {
+    padding: 6px 10px;
+  }
+  
+  .logout-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+/* ===== EFECTOS ADICIONALES ===== */
+/* Para mejorar la experiencia en mapa */
+.map-controls button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.5);
+}
+
+/* Transición suave para todos los elementos interactivos */
+a, button, div[role="button"] {
+  transition: all 0.3s ease;
+}
+
+/* Mejora de contraste para textos */
+.sidebar p, .notifications p {
+  line-height: 1.5;
+  color: #555;
+}
+
+/* Indicador de carga sutil */
+.loading {
+  position: relative;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid transparent;
+  border-top-color: #2ecc71;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

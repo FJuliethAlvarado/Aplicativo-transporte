@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Mapa Usuario</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='usuario.css') }}">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="{{ url_for('static', filename='usuario.js') }}"></script>
+</head>
+
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+    <!-- Botón menú lateral -->
+    <i class="fa fa-bars" id="menu-btn"></i>
+
+    <!-- Buscador -->
+    <div class="search">
+        <i class="fa fa-search"></i>
+        <input type="text" placeholder="Buscar ruta o destino">
+    </div>
+
+    <!-- Botón notificaciones -->
+    <i class="fa fa-bell" id="notif-btn"></i>
+</div>
+
+<!-- PANEL LATERAL -->
+<div id="sidebar" class="sidebar">
+  <h3>Información de Ruta</h3>
+  <div id="proximos-buses"></div>
+  <div id="tiempos-paradas"></div>
+  <div id="tarifas"></div>
+</div>
+
+
+<!-- PANEL DE NOTIFICACIONES -->
+<div id="notifications" class="notifications">
+  <h3>Notificaciones</h3>
+  <ul>
+    <li>Bus 2 sale en 10 min</li>
+    <li>Retraso en Ruta 020</li>
+    <li>Nuevo horario disponible</li>
+  </ul>
+</div>
+
+<!-- MAPA -->
+<div id="map" style="width:100%; height:calc(100vh - 60px);"></div>
+
+
+<!-- BOTONES MAPA -->
+<div class="map-controls">
+    <button onclick="zoomIn()">+</button>
+    <button onclick="zoomOut()">-</button>
+    <button onclick="locate()">📍</button>
+</div>
+
+<!-- CARDS INFERIORES -->
+<div class="cards">
+    <div class="card">
+        <i class="fa fa-route"></i>
+        <div>
+            <b>Ver rutas</b>
+            <p>Consulta todas <br>las rutas disponibles</p>
+        </div>
+    </div>
+    <div class="card">
+        <i class="fa fa-star"></i>
+        <div>
+            <b>Mis favoritos</b>
+            <p>Rutas guardadas</p>
+        </div>
+    </div>
+</div>
+
+<!--BOTTOM NAV -->
+<div class="bottom-nav">
+    <div class="active"><i class="fa fa-home"></i><span>Inicio</span></div>
+    <div><i class="fa fa-route"></i><span>Rutas</span></div>
+    <div><i class="fa fa-star"></i><span>Favoritos</span></div>
+    <div><i class="fa fa-user"></i><span>Perfil</span></div>
+    <div class="logout" onclick="cerrarSesion()">
+        <i class="fa fa-sign-out-alt"></i><span>Cerrar sesión</span>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// Crear mapa
+var map = L.map('map').setView([4.92, -74.03], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+var busIcon = L.icon({
+  iconUrl: 'static/icons/bus.png',
+  iconSize: [32, 32],
+  iconAnchor: [16, 16]
+});
+
+// Ruta 016: Cajicá → Portal del Norte
+fetch("https://router.project-osrm.org/route/v1/driving/-74.024610,4.938874;-74.046007,4.754843?overview=full&geometries=geojson")
+  .then(res => res.json())
+  .then(data => {
+    var route = data.routes[0];
+    var coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+    var tiempoReal = Math.round((route.duration / 60)*1.6);
+    var distancia = (route.distance / 1000).toFixed(1);
+
+    let rutaLine = L.polyline(coords, {color: 'blue'}).addTo(map)
+      .bindPopup(`<b>Ruta 016</b><br>Capellanía → Portal del Norte<br>⏱ ${tiempoReal} min<br>📏 ${distancia} km`);
+
+    var busMarker = L.marker(coords[0], {icon: busIcon}).addTo(map)
+      .bindPopup(`🚌 Bus 1<br>Ruta 016<br>⏱ ${tiempoReal} min<br>📏 ${distancia} km`);
+
+    let i = 0, forward = true;
+    setInterval(() => {
+      if (forward) {
+        i++;
+        if (i >= coords.length-1) { forward = false; rutaLine.setStyle({color:'red'}); }
+      } else {
+        i--;
+        if (i <= 0) { forward = true; rutaLine.setStyle({color:'blue'}); }
+      }
+      busMarker.setLatLng(coords[i]);
+    }, 1000);
+  });
+
+// Funciones de zoom y ubicación
+function zoomIn(){ map.zoomIn(); }
+function zoomOut(){ map.zoomOut(); }
+function locate(){ map.locate({setView:true, maxZoom:16}); }
+
+map.on('locationfound', e=>{
+  L.marker(e.latlng).addTo(map)
+    .bindPopup("📍 Estás aquí<br>Lat: "+e.latlng.lat.toFixed(5)+"<br>Lng: "+e.latlng.lng.toFixed(5))
+    .openPopup();
+  L.circle(e.latlng,{radius:e.accuracy}).addTo(map);
+});
+map.on('locationerror', e=>alert("No se pudo obtener tu ubicación: "+e.message));
+
+function cerrarSesion(){
+  window.location.href = "/logout"; 
+}
+
+
+// Funcionalidad paneles
+document.getElementById("menu-btn").addEventListener("click", ()=>{
+  document.getElementById("sidebar").classList.toggle("active");
+  document.getElementById("notifications").classList.remove("active");
+});
+document.getElementById("notif-btn").addEventListener("click", ()=>{
+  document.getElementById("notifications").classList.toggle("active");
+  document.getElementById("sidebar").classList.remove("active");
+});
+</script>
+
+</body>
+</html>

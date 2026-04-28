@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cajicá en Ruta</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+    <div class="spinner"></div>
+    <p>Cargando...</p>
+</div>
+
+<div class="background">
+    <div class="overlay">
+
+        <!-- HEADER -->
+        <div class="header">
+            <div class="icon">🚌</div>
+            <h1>Cajicá <span>en Ruta</span></h1>
+            <p>Tu transporte, en tiempo real</p>
+        </div>
+
+        <!-- CARD LOGIN -->
+        <div class="card">
+            <h3>Iniciar sesión</h3>
+
+            <form method="POST" action="/">
+
+                <!-- CORREO -->
+                <div class="input-group">
+                    <i class="fa fa-envelope"></i>
+                    <input type="email" name="correo" placeholder="Correo electrónico" required>
+                </div>
+
+                <!-- PASSWORD -->
+                <div class="input-group password-group">
+                    <i class="fa fa-lock"></i>
+                    <input type="password" id="password" name="password" placeholder="Contraseña" required>
+                    <i class="fa fa-eye toggle-password" onclick="togglePassword()"></i>
+                </div>
+
+                <!-- OPCIONES -->
+                <div class="options">
+                    <label>
+                        <input type="checkbox"> Recordarme
+                    </label>
+                    <a href="#">¿Olvidaste tu contraseña?</a>
+                </div>
+
+                <!-- BOTÓN -->
+                <button type="submit">Iniciar sesión</button>
+            </form>
+
+            <!-- ERROR FLASK -->
+            {% if error %}
+                <p class="error">{{ error }}</p>
+            {% endif %}
+
+            <p class="register">
+                ¿No tienes cuenta?
+                <a href="{{ url_for('register') }}">Regístrate</a>
+            </p>
+        </div>
+
+    </div>
+</div>
+
+<!-- JS -->
+<script>
+// mostrar/ocultar contraseña
+function togglePassword() {
+    const input = document.getElementById("password");
+    input.type = input.type === "password" ? "text" : "password";
+}
+
+// loader
+window.addEventListener("load", function() {
+    const loader = document.getElementById("loader");
+
+    setTimeout(() => {
+        loader.style.opacity = "0";
+        loader.style.transition = "opacity 0.5s ease";
+
+        setTimeout(() => {
+            loader.style.display = "none";
+        }, 500);
+
+    }, 1000);
+});
+</script>
+
+</body>
+</html>
