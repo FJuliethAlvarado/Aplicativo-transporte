@@ -1,0 +1,97 @@
+{% extends "admin.html" %}
+
+{% block title %}Inicio - Administrador{% endblock %}
+
+{% block content %}
+<h1>Bienvenido al Panel de Administración</h1>
+<p>Selecciona una opción en el menú lateral para gestionar rutas o usuarios.</p>
+
+<div class="dashboard-cards">
+    <div class="card">
+        <i class="fa fa-users"></i>
+        <h2>{{ usuarios|length }}</h2>
+        <p>Total usuarios</p>
+    </div>
+    <div class="card">
+        <i class="fa fa-user-shield"></i>
+        <h2>{{ usuarios|selectattr("tipo","equalto","administrador")|list|length }}</h2>
+        <p>Administradores</p>
+    </div>
+    <div class="card">
+        <i class="fa fa-id-card"></i>
+        <h2>{{ usuarios|selectattr("tipo","equalto","conductor")|list|length }}</h2>
+        <p>Conductores</p>
+    </div>
+    <div class="card">
+        <i class="fa fa-user"></i>
+        <h2>{{ usuarios|selectattr("tipo","equalto","usuario")|list|length }}</h2>
+        <p>Usuarios finales</p>
+    </div>
+    <div class="card">
+        <i class="fa fa-bus"></i>
+        <h2>{{ rutas|length }}</h2>
+        <p>Rutas activas</p>
+    </div>
+    <div class="card">
+        <i class="fa fa-road"></i>
+        <h2>{{ rutas|selectattr("tipo","equalto","intermunicipal")|list|length }}</h2>
+        <p>Rutas intermunicipales</p>
+    </div>
+    <div class="card">
+        <i class="fa fa-city"></i>
+        <h2>{{ rutas|selectattr("tipo","equalto","interna")|list|length }}</h2>
+        <p>Rutas internas</p>
+    </div>
+</div>
+
+<!-- Gráfico -->
+<div class="chart-container">
+    <h2>Estadísticas visuales</h2>
+    <canvas id="dashboardChart" width="400" height="250"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('dashboardChart').getContext('2d');
+    const dashboardChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: [
+                'Administradores',
+                'Conductores',
+                'Usuarios finales',
+                'Rutas intermunicipales',
+                'Rutas internas'
+            ],
+            datasets: [{
+                label: 'Cantidad',
+                data: [
+                    {{ usuarios|selectattr("tipo","equalto","administrador")|list|length }},
+                    {{ usuarios|selectattr("tipo","equalto","conductor")|list|length }},
+                    {{ usuarios|selectattr("tipo","equalto","usuario")|list|length }},
+                    {{ rutas|selectattr("tipo","equalto","intermunicipal")|list|length }},
+                    {{ rutas|selectattr("tipo","equalto","interna")|list|length }}
+                ],
+                backgroundColor: [
+                    '#22c55e',
+                    '#0ea5e9',
+                    '#f59e0b',
+                    '#6366f1',
+                    '#dc2626'
+                ]
+            }]
+        },
+        options: {
+            responsive: false,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                title: { display: true, text: 'Usuarios y Rutas por categoría' }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+</script>
+{% endblock %}

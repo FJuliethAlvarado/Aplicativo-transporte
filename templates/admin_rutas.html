@@ -1,0 +1,30 @@
+{% extends "admin.html" %}
+
+{% block title %}Gestión de Rutas{% endblock %}
+
+{% block content %}
+<h1>Gestión de Rutas</h1>
+<a href="{{ url_for('nueva_ruta') }}" class="btn btn-new"><i class="fa fa-plus"></i> Agregar ruta</a>
+
+<table>
+    <tr>
+        <th>Nombre</th>
+        <th>Origen</th>
+        <th>Destino</th>
+        <th>Horario</th>
+        <th>Acciones</th>
+    </tr>
+    {% for r in rutas %}
+    <tr>
+        <td>{{ r.nombre }}</td>
+        <td>{{ r.origen }}</td>
+        <td>{{ r.destino }}</td>
+        <td>{{ r.horario }}</td>
+        <td>
+            <a href="{{ url_for('editar_ruta', id=r.id) }}" class="btn btn-edit"><i class="fa fa-pencil-alt"></i> Editar</a>
+            <a href="{{ url_for('eliminar_ruta', id=r.id) }}" class="btn btn-delete"><i class="fa fa-trash"></i> Eliminar</a>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "admin.html" %}
+
+{% block title %}Editar Usuario{% endblock %}
+
+{% block content %}
+<h1>Editar Usuario</h1>
+
+<section class="form-section">
+    <h2>Modificar datos del usuario</h2>
+    <form method="POST" action="{{ url_for('editar_usuario', id=usuario.id) }}" class="user-form">
+        <div class="form-group">
+            <label for="nombre">Nombre:</label>
+            <input type="text" id="nombre" name="nombre" value="{{ usuario.nombre }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="correo">Correo:</label>
+            <input type="email" id="correo" name="email" value="{{ usuario.email }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="tipo">Rol:</label>
+            <select id="tipo" name="tipo" required>
+                <option value="usuario" {% if usuario.tipo == 'usuario' %}selected{% endif %}>Usuario</option>
+                <option value="conductor" {% if usuario.tipo == 'conductor' %}selected{% endif %}>Conductor</option>
+                <option value="administrador" {% if usuario.tipo == 'administrador' %}selected{% endif %}>Administrador</option>
+            </select>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-edit">Guardar cambios</button>
+            <a href="{{ url_for('admin_usuarios') }}" class="btn btn-delete">Cancelar</a>
+        </div>
+    </form>
+</section>
+{% endblock %}
