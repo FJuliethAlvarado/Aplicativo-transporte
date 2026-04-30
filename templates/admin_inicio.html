@@ -6,6 +6,33 @@
 <h1>Bienvenido al Panel de Administración</h1>
 <p>Selecciona una opción en el menú lateral para gestionar rutas o usuarios.</p>
 
+<style>
+.dashboard-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.dashboard-cards .card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* Ajuste para pantallas pequeñas */
+@media (max-width: 768px) {
+    .dashboard-cards {
+        grid-template-columns: 1fr 1fr; /* dos cards por fila en móvil */
+    }
+    .chart-container {
+        width: 100%;
+        overflow-x: auto;
+    }
+}
+</style>
+
 <div class="dashboard-cards">
     <div class="card">
         <i class="fa fa-users"></i>
