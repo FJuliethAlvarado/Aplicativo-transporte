@@ -36,37 +36,37 @@
 <div class="dashboard-cards">
     <div class="card">
         <i class="fa fa-users"></i>
-        <h2>{{ usuarios|length }}</h2>
+        <h2>{{ stats.total_usuarios }}</h2>
         <p>Total usuarios</p>
     </div>
     <div class="card">
         <i class="fa fa-user-shield"></i>
-        <h2>{{ usuarios|selectattr("tipo","equalto","administrador")|list|length }}</h2>
+        <h2>{{ stats.admin_count }}</h2>
         <p>Administradores</p>
     </div>
     <div class="card">
         <i class="fa fa-id-card"></i>
-        <h2>{{ usuarios|selectattr("tipo","equalto","conductor")|list|length }}</h2>
+        <h2>{{ stats.conductor_count }}</h2>
         <p>Conductores</p>
     </div>
     <div class="card">
         <i class="fa fa-user"></i>
-        <h2>{{ usuarios|selectattr("tipo","equalto","usuario")|list|length }}</h2>
+        <h2>{{ stats.usuario_count }}</h2>
         <p>Usuarios finales</p>
     </div>
     <div class="card">
         <i class="fa fa-bus"></i>
-        <h2>{{ rutas|length }}</h2>
+        <h2>{{ stats.total_rutas }}</h2>
         <p>Rutas activas</p>
     </div>
     <div class="card">
         <i class="fa fa-road"></i>
-        <h2>{{ rutas|selectattr("tipo","equalto","intermunicipal")|list|length }}</h2>
+        <h2>{{ stats.intermunicipal_count }}</h2>
         <p>Rutas intermunicipales</p>
     </div>
     <div class="card">
         <i class="fa fa-city"></i>
-        <h2>{{ rutas|selectattr("tipo","equalto","interna")|list|length }}</h2>
+        <h2>{{ stats.interna_count }}</h2>
         <p>Rutas internas</p>
     </div>
 </div>
@@ -93,11 +93,11 @@
             datasets: [{
                 label: 'Cantidad',
                 data: [
-                    {{ usuarios|selectattr("tipo","equalto","administrador")|list|length }},
-                    {{ usuarios|selectattr("tipo","equalto","conductor")|list|length }},
-                    {{ usuarios|selectattr("tipo","equalto","usuario")|list|length }},
-                    {{ rutas|selectattr("tipo","equalto","intermunicipal")|list|length }},
-                    {{ rutas|selectattr("tipo","equalto","interna")|list|length }}
+                    {{ stats.admin_count }},
+                    {{ stats.conductor_count }},
+                    {{ stats.usuario_count }},
+                    {{ stats.intermunicipal_count }},
+                    {{ stats.interna_count }}
                 ],
                 backgroundColor: [
                     '#22c55e',
@@ -116,7 +116,10 @@
                 title: { display: true, text: 'Usuarios y Rutas por categoría' }
             },
             scales: {
-                y: { beginAtZero: true }
+                y: { 
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 }
+                }
             }
         }
     });

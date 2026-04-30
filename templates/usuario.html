@@ -2,29 +2,23 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
- <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Mapa Usuario</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Mapa Usuario - Transporte App</title>
 
 <link rel="stylesheet" href="{{ url_for('static', filename='usuario.css') }}">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<script src="{{ url_for('static', filename='usuario.js') }}"></script>
 </head>
 
 <body>
 
 <!-- TOP BAR -->
 <div class="topbar">
-    <!-- Botón menú lateral -->
     <i class="fa fa-bars" id="menu-btn"></i>
-
-    <!-- Buscador -->
     <div class="search">
         <i class="fa fa-search"></i>
-        <input type="text" placeholder="Buscar ruta o destino">
+        <input type="text" id="search-input" placeholder="Buscar ruta o destino">
     </div>
-
-    <!-- Botón notificaciones -->
     <i class="fa fa-bell" id="notif-btn"></i>
 </div>
 
@@ -36,20 +30,16 @@
   <div id="tarifas"></div>
 </div>
 
-
 <!-- PANEL DE NOTIFICACIONES -->
 <div id="notifications" class="notifications">
   <h3>Notificaciones</h3>
-  <ul>
-    <li>Bus 2 sale en 10 min</li>
-    <li>Retraso en Ruta 020</li>
-    <li>Nuevo horario disponible</li>
+  <ul id="notif-list">
+    <li>Bienvenido al sistema de transporte</li>
   </ul>
 </div>
 
 <!-- MAPA -->
 <div id="map" style="width:100%; height:calc(100vh - 60px);"></div>
-
 
 <!-- BOTONES MAPA -->
 <div class="map-controls">
@@ -60,122 +50,371 @@
 
 <!-- CARDS INFERIORES -->
 <div class="cards">
-    <div class="card">
+    <div class="card" onclick="mostrarTodasRutas()">
         <i class="fa fa-route"></i>
         <div>
             <b>Ver rutas</b>
-            <p>Consulta todas <br>las rutas disponibles</p>
+            <p>Todas las rutas</p>
         </div>
     </div>
-    <div class="card">
-        <i class="fa fa-star"></i>
+    <div class="card" onclick="alternarSentido()">
+        <i class="fa fa-exchange-alt"></i>
         <div>
-            <b>Mis favoritos</b>
-            <p>Rutas guardadas</p>
+            <b>Sentido</b>
+            <p id="sentido-texto">Ida</p>
         </div>
     </div>
 </div>
 
-<!--BOTTOM NAV -->
+<!-- BOTTOM NAV -->
 <div class="bottom-nav">
     <div class="active"><i class="fa fa-home"></i><span>Inicio</span></div>
     <div><i class="fa fa-route"></i><span>Rutas</span></div>
     <div><i class="fa fa-star"></i><span>Favoritos</span></div>
     <div><i class="fa fa-user"></i><span>Perfil</span></div>
-    <div class="logout" onclick="cerrarSesion()">
-        <i class="fa fa-sign-out-alt"></i><span>Cerrar sesión</span>
-    </div>
+    <div onclick="cerrarSesion()"><i class="fa fa-sign-out-alt"></i><span>Cerrar</span></div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// Crear mapa
-var map = L.map('map').setView([4.92, -74.03], 12);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+// ==================== INICIALIZAR MAPA ====================
+var map = L.map('map').setView([4.917, -74.028], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+}).addTo(map);
 
-var busIcon = L.icon({
-  iconUrl: 'static/icons/bus.png',
-  iconSize: [32, 32],
-  iconAnchor: [16, 16]
-});
+// ==================== VARIABLES GLOBALES ====================
+var todasLasRutas = [];      // Almacena todas las rutas originales
+var rutasVisibles = [];      // Almacena las rutas actualmente visibles
+var sentidoActual = 'ida';
+var busActivo = null;
+var intervaloBus = null;
+var busIntervaloId = null;
 
-// Ruta 016: Cajicá → Portal del Norte
-fetch("https://router.project-osrm.org/route/v1/driving/-74.024610,4.938874;-74.046007,4.754843?overview=full&geometries=geojson")
-  .then(res => res.json())
-  .then(data => {
-    var route = data.routes[0];
-    var coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
-    var tiempoReal = Math.round((route.duration / 60)*1.6);
-    var distancia = (route.distance / 1000).toFixed(1);
-
-    let rutaLine = L.polyline(coords, {color: 'blue'}).addTo(map)
-      .bindPopup(`<b>Ruta 016</b><br>Capellanía → Portal del Norte<br>⏱ ${tiempoReal} min<br>📏 ${distancia} km`);
-
-    var busMarker = L.marker(coords[0], {icon: busIcon}).addTo(map)
-      .bindPopup(`🚌 Bus 1<br>Ruta 016<br>⏱ ${tiempoReal} min<br>📏 ${distancia} km`);
-
-    let i = 0, forward = true;
-    setInterval(() => {
-      if (forward) {
-        i++;
-        if (i >= coords.length-1) { forward = false; rutaLine.setStyle({color:'red'}); }
-      } else {
-        i--;
-        if (i <= 0) { forward = true; rutaLine.setStyle({color:'blue'}); }
-      }
-      busMarker.setLatLng(coords[i]);
-    }, 1000);
-  });
-
-// Funciones de zoom y ubicación
-function zoomIn(){ map.zoomIn(); }
-function zoomOut(){ map.zoomOut(); }
-function locate(){ map.locate({setView:true, maxZoom:16}); }
-
-map.on('locationfound', e=>{
-  L.marker(e.latlng).addTo(map)
-    .bindPopup("📍 Estás aquí<br>Lat: "+e.latlng.lat.toFixed(5)+"<br>Lng: "+e.latlng.lng.toFixed(5))
-    .openPopup();
-  L.circle(e.latlng,{radius:e.accuracy}).addTo(map);
-});
-map.on('locationerror', e=>alert("No se pudo obtener tu ubicación: "+e.message));
-
-function cerrarSesion(){
-  window.location.href = "/logout"; 
+// ==================== CARGAR RUTAS DESDE LA API ====================
+async function cargarRutas() {
+    try {
+        const response = await fetch('/api/rutas');
+        const rutas = await response.json();
+        
+        console.log('Rutas recibidas:', rutas);
+        
+        if (rutas.length === 0) {
+            mostrarNotificacion('No hay rutas disponibles', 'warning');
+            return;
+        }
+        
+        // Guardar todas las rutas
+        todasLasRutas = rutas.filter(r => r.coordenadas_ida && r.coordenadas_vuelta);
+        
+        if (todasLasRutas.length === 0) {
+            mostrarNotificacion('Las rutas no tienen coordenadas', 'warning');
+            return;
+        }
+        
+        // Dibujar rutas
+        dibujarTodasLasRutas();
+        
+        mostrarNotificacion(`✅ ${todasLasRutas.length} rutas cargadas`, 'success');
+        
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarNotificacion('Error al cargar rutas', 'error');
+    }
 }
 
+// ==================== DIBUJAR TODAS LAS RUTAS ====================
+function dibujarTodasLasRutas() {
+    // Limpiar rutas anteriores
+    rutasVisibles.forEach(item => {
+        if (item.linea) map.removeLayer(item.linea);
+        if (item.origenMarker) map.removeLayer(item.origenMarker);
+        if (item.destinoMarker) map.removeLayer(item.destinoMarker);
+    });
+    rutasVisibles = [];
+    
+    // Dibujar cada ruta
+    todasLasRutas.forEach(ruta => {
+        dibujarRuta(ruta);
+    });
+}
 
-// Funcionalidad paneles
-document.getElementById("menu-btn").addEventListener("click", ()=>{
-  document.getElementById("sidebar").classList.toggle("active");
-  document.getElementById("notifications").classList.remove("active");
-});
-document.getElementById("notif-btn").addEventListener("click", ()=>{
-  document.getElementById("notifications").classList.toggle("active");
-  document.getElementById("sidebar").classList.remove("active");
+// ==================== DIBUJAR UNA RUTA ====================
+function dibujarRuta(ruta) {
+    try {
+        // Obtener coordenadas según sentido
+        let coordenadas, duracion, distancia, origenTexto, destinoTexto;
+        
+        if (sentidoActual === 'ida') {
+            coordenadas = JSON.parse(ruta.coordenadas_ida);
+            duracion = ruta.duracion_ida;
+            distancia = ruta.distancia_ida;
+            origenTexto = ruta.origen;
+            destinoTexto = ruta.destino;
+        } else {
+            coordenadas = JSON.parse(ruta.coordenadas_vuelta);
+            duracion = ruta.duracion_vuelta;
+            distancia = ruta.distancia_vuelta;
+            origenTexto = ruta.destino;
+            destinoTexto = ruta.origen;
+        }
+        
+        if (!coordenadas || coordenadas.length === 0) return;
+        
+        // Color según tipo
+        const color = ruta.tipo === 'interna' ? '#0066cc' : '#ea580c';
+        
+        // Dibujar línea de la ruta
+        const rutaLine = L.polyline(coordenadas, {
+            color: color,
+            weight: 5,
+            opacity: 0.8
+        }).addTo(map);
+        
+        // Popup con información y botón de simulación
+        rutaLine.bindPopup(`
+            <div style="min-width: 220px; font-family: Arial, sans-serif;">
+                <b style="font-size: 16px;">🚌 ${ruta.nombre}</b><br>
+                <hr style="margin: 5px 0;">
+                <b>📍 Origen:</b> ${origenTexto}<br>
+                <b>🏁 Destino:</b> ${destinoTexto}<br>
+                <b>📋 Tipo:</b> ${ruta.tipo === 'interna' ? 'Interna' : 'Intermunicipal'}<br>
+                <b>🔄 Sentido:</b> ${sentidoActual === 'ida' ? 'Ida' : 'Vuelta'}<br>
+                <b>⏱ Duración:</b> ${duracion} min<br>
+                <b>📏 Distancia:</b> ${distancia} km<br>
+                <hr style="margin: 5px 0;">
+                <button onclick="simularBus(${ruta.id})" style="background: #0066cc; color: white; border: none; padding: 8px; border-radius: 5px; cursor: pointer; width: 100%; font-size: 14px;">
+                    🚌 SIMULAR BUS EN MOVIMIENTO
+                </button>
+            </div>
+        `);
+        
+        // Marcador de origen
+        const origenMarker = L.marker(coordenadas[0], {
+            icon: L.divIcon({
+                html: '<i class="fa fa-map-marker" style="font-size: 28px; color: green; text-shadow: 0 0 3px white;"></i>',
+                iconSize: [28, 28]
+            })
+        }).addTo(map);
+        origenMarker.bindPopup(`<b>📍 ORIGEN</b><br>${origenTexto}`);
+        
+        // Marcador de destino
+        const destinoMarker = L.marker(coordenadas[coordenadas.length - 1], {
+            icon: L.divIcon({
+                html: '<i class="fa fa-map-marker" style="font-size: 28px; color: red; text-shadow: 0 0 3px white;"></i>',
+                iconSize: [28, 28]
+            })
+        }).addTo(map);
+        destinoMarker.bindPopup(`<b>🏁 DESTINO</b><br>${destinoTexto}`);
+        
+        // Guardar referencia
+        rutasVisibles.push({
+            id: ruta.id,
+            nombre: ruta.nombre,
+            linea: rutaLine,
+            coordenadas: coordenadas,
+            duracion: duracion,
+            distancia: distancia,
+            origen: origenTexto,
+            destino: destinoTexto,
+            origenMarker: origenMarker,
+            destinoMarker: destinoMarker,
+            rutaOriginal: ruta
+        });
+        
+    } catch (error) {
+        console.error('Error dibujando ruta:', error);
+    }
+}
+
+// ==================== ALTERNAR SENTIDO ====================
+function alternarSentido() {
+    sentidoActual = sentidoActual === 'ida' ? 'vuelta' : 'ida';
+    document.getElementById('sentido-texto').innerHTML = sentidoActual === 'ida' ? 'Ida' : 'Vuelta';
+    
+    // Detener bus si está en movimiento
+    if (intervaloBus) {
+        clearInterval(intervaloBus);
+        intervaloBus = null;
+    }
+    if (busActivo) {
+        map.removeLayer(busActivo);
+        busActivo = null;
+    }
+    
+    // Redibujar rutas
+    dibujarTodasLasRutas();
+    
+    mostrarNotificacion(`Cambiando a sentido: ${sentidoActual === 'ida' ? 'Ida' : 'Vuelta'}`, 'info');
+}
+
+// ==================== SIMULAR BUS ====================
+function simularBus(rutaId) {
+    // Buscar la ruta en las rutas visibles
+    const rutaData = rutasVisibles.find(r => r.id === rutaId);
+    
+    if (!rutaData) {
+        mostrarNotificacion('Error: No se encontró la ruta', 'error');
+        console.log('Rutas disponibles:', rutasVisibles);
+        console.log('Buscando ID:', rutaId);
+        return;
+    }
+    
+    console.log('Simulando bus para:', rutaData.nombre);
+    
+    // Detener bus anterior
+    if (intervaloBus) {
+        clearInterval(intervaloBus);
+        intervaloBus = null;
+    }
+    if (busActivo) {
+        map.removeLayer(busActivo);
+        busActivo = null;
+    }
+    
+    const coordenadas = rutaData.coordenadas;
+    let indice = 0;
+    let direccion = 1;
+    
+    // Icono del bus
+    const busIcono = L.divIcon({
+        html: '<i class="fa fa-bus" style="font-size: 34px; color: #0066cc; text-shadow: 0 0 3px white;"></i>',
+        iconSize: [34, 34],
+        className: 'bus-marker'
+    });
+    
+    // Crear marcador del bus
+    busActivo = L.marker(coordenadas[0], {icon: busIcono}).addTo(map);
+    map.setView(coordenadas[0], 15);
+    
+    mostrarNotificacion(`🚌 Simulando bus: ${rutaData.nombre} (${sentidoActual === 'ida' ? 'Ida' : 'Vuelta'})`, 'success');
+    
+    // Animar bus
+    intervaloBus = setInterval(() => {
+        indice += direccion;
+        
+        // Cambiar dirección al llegar al final o inicio
+        if (indice >= coordenadas.length - 1) {
+            indice = coordenadas.length - 1;
+            direccion = -1;
+            mostrarNotificacion(`🚌 El bus ha llegado a ${rutaData.destino}`, 'info');
+        } else if (indice <= 0) {
+            indice = 0;
+            direccion = 1;
+            mostrarNotificacion(`🚌 El bus ha llegado a ${rutaData.origen}`, 'info');
+        }
+        
+        // Mover bus
+        busActivo.setLatLng(coordenadas[indice]);
+        
+        // Actualizar popup
+        const progreso = (indice / coordenadas.length) * 100;
+        const tiempoTranscurrido = Math.round(rutaData.duracion * (indice / coordenadas.length));
+        const tiempoRestante = rutaData.duracion - tiempoTranscurrido;
+        
+        busActivo.bindPopup(`
+            <b>🚌 Bus - ${rutaData.nombre}</b><br>
+            <b>🔄 Sentido:</b> ${sentidoActual === 'ida' ? 'Ida →' : 'Vuelta →'}<br>
+            <b>📍 Destino:</b> ${rutaData.destino}<br>
+            <b>📊 Progreso:</b> ${Math.round(progreso)}%<br>
+            <b>⏱ Tiempo restante:</b> ~${Math.max(0, tiempoRestante)} min
+        `).openPopup();
+        
+        // Seguir el bus con la cámara
+        map.panTo(coordenadas[indice]);
+        
+    }, 800);
+}
+
+// ==================== MOSTRAR TODAS LAS RUTAS ====================
+function mostrarTodasRutas() {
+    if (rutasVisibles.length === 0) {
+        mostrarNotificacion('No hay rutas para mostrar', 'warning');
+        return;
+    }
+    
+    const bounds = [];
+    rutasVisibles.forEach(item => {
+        item.coordenadas.forEach(coord => bounds.push(coord));
+    });
+    
+    if (bounds.length > 0) {
+        map.fitBounds(bounds);
+        mostrarNotificacion(`Mostrando ${rutasVisibles.length} rutas`, 'success');
+    }
+}
+
+// ==================== FUNCIONES DE UTILIDAD ====================
+function zoomIn() { map.zoomIn(); }
+function zoomOut() { map.zoomOut(); }
+
+function locate() { 
+    map.locate({setView: true, maxZoom: 16});
+    mostrarNotificacion('Buscando tu ubicación...', 'info');
+}
+
+function cerrarSesion() {
+    window.location.href = "/logout";
+}
+
+function mostrarNotificacion(mensaje, tipo = 'info') {
+    const notifList = document.getElementById('notif-list');
+    if (notifList) {
+        const li = document.createElement('li');
+        li.textContent = mensaje;
+        if (tipo === 'success') li.style.color = 'green';
+        if (tipo === 'error') li.style.color = 'red';
+        if (tipo === 'warning') li.style.color = 'orange';
+        notifList.insertBefore(li, notifList.firstChild);
+        
+        setTimeout(() => li.remove(), 5000);
+    }
+}
+
+// ==================== EVENT LISTENERS ====================
+map.on('locationfound', e => {
+    L.marker(e.latlng).addTo(map)
+        .bindPopup(`📍 Tu ubicación actual`)
+        .openPopup();
+    mostrarNotificacion('Ubicación encontrada', 'success');
 });
 
-// Cerrar paneles al hacer clic fuera
-document.addEventListener("click", (e) => {
-  const sidebar = document.getElementById("sidebar");
-  const notifications = document.getElementById("notifications");
-  const menuBtn = document.getElementById("menu-btn");
-  const notifBtn = document.getElementById("notif-btn");
-  
-  // Si el clic no está en sidebar, notificaciones o sus botones
-  if (!sidebar.contains(e.target) && !menuBtn.contains(e.target)) {
-    sidebar.classList.remove("active");
-  }
-  
-  if (!notifications.contains(e.target) && !notifBtn.contains(e.target)) {
-    notifications.classList.remove("active");
-  }
+// Paneles laterales
+document.getElementById("menu-btn").addEventListener("click", () => {
+    document.getElementById("sidebar").classList.toggle("active");
+    document.getElementById("notifications").classList.remove("active");
 });
 
-// Asegurar que los paneles inicien cerrados
+document.getElementById("notif-btn").addEventListener("click", () => {
+    document.getElementById("notifications").classList.toggle("active");
+    document.getElementById("sidebar").classList.remove("active");
+});
+
+// Buscador
+document.getElementById("search-input").addEventListener("input", (e) => {
+    const busqueda = e.target.value.toLowerCase();
+    rutasVisibles.forEach(item => {
+        const coincide = item.nombre.toLowerCase().includes(busqueda) ||
+                        item.origen.toLowerCase().includes(busqueda) ||
+                        item.destino.toLowerCase().includes(busqueda);
+        
+        if (coincide) {
+            if (item.linea) item.linea.setStyle({ opacity: 1, weight: 6 });
+            if (item.origenMarker) item.origenMarker.setOpacity(1);
+            if (item.destinoMarker) item.destinoMarker.setOpacity(1);
+        } else {
+            if (item.linea) item.linea.setStyle({ opacity: 0.2, weight: 3 });
+            if (item.origenMarker) item.origenMarker.setOpacity(0.3);
+            if (item.destinoMarker) item.destinoMarker.setOpacity(0.3);
+        }
+    });
+});
+
+// ==================== INICIALIZAR ====================
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("sidebar").classList.remove("active");
-  document.getElementById("notifications").classList.remove("active");
+    document.getElementById("sidebar").classList.remove("active");
+    document.getElementById("notifications").classList.remove("active");
+    cargarRutas();
 });
 </script>
 

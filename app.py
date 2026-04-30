@@ -1,5 +1,7 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+from services.ruta_service import RutaService
 from auth import admin_required
 import os
 
@@ -17,6 +19,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 
 # ===== MODELO USUARIO =====
 class User(db.Model):
@@ -32,7 +35,19 @@ class Ruta(db.Model):
     nombre = db.Column(db.String(100), nullable=False)
     origen = db.Column(db.String(100), nullable=False)
     destino = db.Column(db.String(100), nullable=False)
-    horario = db.Column(db.String(100), nullable=False)
+    horario = db.Column(db.String(20), nullable=False)
+    tipo = db.Column(db.String(20), nullable=False, default='interna')
+    
+    # Nuevos campos para manejar la geometría de la ruta
+    coordenadas_ida = db.Column(db.Text, nullable=True)  # JSON con coordenadas [lat,lng]
+    coordenadas_vuelta = db.Column(db.Text, nullable=True)  # JSON con coordenadas
+    duracion_ida = db.Column(db.Integer, nullable=True)  # en minutos
+    duracion_vuelta = db.Column(db.Integer, nullable=True)  # en minutos
+    distancia_ida = db.Column(db.Float, nullable=True)  # en km
+    distancia_vuelta = db.Column(db.Float, nullable=True)  # en km
+    
+    def __repr__(self):
+        return f'<Ruta {self.nombre}>'
 
 # ===== LOGIN =====
 @app.route('/', methods=['GET', 'POST'])
@@ -136,7 +151,22 @@ with app.app_context():
 def admin_panel():
     usuarios = User.query.all()
     rutas = Ruta.query.all()
-    return render_template('admin_inicio.html', usuarios=usuarios, rutas=rutas)
+    
+    # Calculate statistics
+    stats = {
+        'admin_count': len([u for u in usuarios if u.tipo == 'administrador']),
+        'conductor_count': len([u for u in usuarios if u.tipo == 'conductor']),
+        'usuario_count': len([u for u in usuarios if u.tipo == 'usuario']),
+        'intermunicipal_count': len([r for r in rutas if r.tipo == 'intermunicipal']),
+        'interna_count': len([r for r in rutas if r.tipo == 'interna']),
+        'total_usuarios': len(usuarios),
+        'total_rutas': len(rutas)
+    }
+    
+    return render_template('admin_inicio.html', 
+                         usuarios=usuarios, 
+                         rutas=rutas,
+                         stats=stats)
 
 
 @app.route('/admin/rutas')
@@ -196,6 +226,26 @@ def editar_usuario(id):
         db.session.commit()
         return redirect(url_for('admin_panel'))
     return render_template('editar_usuario.html', usuario=usuario)
+#====== API =======
+@app.route('/api/rutas')
+def api_rutas():
+    rutas = Ruta.query.all()
+    rutas_data = []
+    for ruta in rutas:
+        rutas_data.append({
+            'id': ruta.id,
+            'nombre': ruta.nombre,
+            'origen': ruta.origen,
+            'destino': ruta.destino,
+            'tipo': ruta.tipo,
+            'coordenadas_ida': ruta.coordenadas_ida,
+            'coordenadas_vuelta': ruta.coordenadas_vuelta,
+            'duracion_ida': ruta.duracion_ida,
+            'duracion_vuelta': ruta.duracion_vuelta,
+            'distancia_ida': ruta.distancia_ida,
+            'distancia_vuelta': ruta.distancia_vuelta
+        })
+    return jsonify(rutas_data)
 
 # ===== CRUD RUTAS =====
 @app.route('/admin/ruta/nueva', methods=['GET','POST'])
@@ -206,10 +256,18 @@ def nueva_ruta():
             nombre=request.form['nombre'],
             origen=request.form['origen'],
             destino=request.form['destino'],
-            horario=request.form['horario']
+            horario=request.form['horario'],
+            tipo=request.form['tipo'],
+            coordenadas_ida=request.form.get('coordenadas_ida'),
+            coordenadas_vuelta=request.form.get('coordenadas_vuelta'),
+            duracion_ida=request.form.get('duracion_ida', type=int),
+            duracion_vuelta=request.form.get('duracion_vuelta', type=int),
+            distancia_ida=request.form.get('distancia_ida', type=float),
+            distancia_vuelta=request.form.get('distancia_vuelta', type=float)
         )
         db.session.add(ruta)
         db.session.commit()
+        flash('Ruta creada exitosamente', 'success')
         return redirect(url_for('admin_panel'))
     return render_template('nueva_ruta.html')
 
