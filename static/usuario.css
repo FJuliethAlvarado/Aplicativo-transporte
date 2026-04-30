@@ -369,12 +369,319 @@ body {
 }
 
 /* ===== RESPONSIVE ===== */
-@media (max-width: 768px) {
+
+/* Tablets grandes (1024px) */
+@media (max-width: 1024px) {
   .topbar {
-    padding: 0 10px;
+    padding: 0 15px;
   }
   
   .search {
+    max-width: 300px;
+  }
+  
+  .sidebar, .notifications {
+    width: 300px;
+    right: -300px;
+  }
+  
+  .map-controls {
+    top: 100px;
+  }
+  
+  .cards {
+    bottom: 75px;
+    left: 12px;
+  }
+  
+  .card {
+    padding: 10px 14px;
+  }
+}
+
+/* Tablets (768px) */
+@media (max-width: 768px) {
+  .topbar {
+    padding: 0 10px;
+    height: 55px;
+  }
+  
+  .topbar i {
+    font-size: 18px;
+    margin: 0 8px;
+  }
+  
+  .search {
+    max-width: 200px;
+    padding: 6px 12px;
+  }
+  
+  .search input {
+    font-size: 13px;
+  }
+  
+  .sidebar, .notifications {
+    width: 280px;
+    right: -280px;
+    padding: 15px;
+    top: 55px;
+    height: calc(100% - 55px);
+  }
+  
+  .sidebar h3, .notifications h3 {
+    font-size: 18px;
+    margin-bottom: 12px;
+  }
+  
+  #map {
+    top: 55px;
+    bottom: 65px;
+  }
+  
+  .logout-btn {
+    top: 70px;
+    padding: 7px 14px;
+    font-size: 12px;
+  }
+  
+  .map-controls {
+    top: 100px;
+    right: 12px;
+    gap: 8px;
+  }
+  
+  .map-controls button {
+    width: 40px;
+    height: 40px;
+    font-size: 14px;
+    padding: 10px;
+  }
+  
+  .cards {
+    bottom: 75px;
+    gap: 10px;
+  }
+  
+  .card {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
+  .card i {
+    font-size: 18px;
+  }
+  
+  .card span {
+    font-size: 12px;
+  }
+  
+  .bottom-nav {
+    height: 60px;
+  }
+  
+  .bottom-nav div i {
+    font-size: 18px;
+    margin-bottom: 3px;
+  }
+  
+  .bottom-nav div span {
+    font-size: 10px;
+  }
+}
+
+/* Móviles (480px) */
+@media (max-width: 480px) {
+  .topbar {
+    height: 50px;
+    padding: 0 8px;
+  }
+  
+  .topbar i {
+    font-size: 16px;
+    margin: 0 6px;
+  }
+  
+  .search {
+    max-width: 130px;
+    padding: 5px 10px;
+    border-radius: 20px;
+  }
+  
+  .search i {
+    font-size: 14px;
+    margin-right: 6px;
+  }
+  
+  .search input {
+    font-size: 12px;
+  }
+  
+  .sidebar, .notifications {
+    width: 100%;
+    right: -100%;
+    left: 0;
+    height: calc(100% - 50px);
+    top: 50px;
+    border-left: none;
+    border-right: none;
+    padding: 15px;
+    z-index: 800;
+  }
+  
+  .sidebar h3, .notifications h3 {
+    font-size: 16px;
+    margin-bottom: 10px;
+  }
+  
+  #map {
+    top: 50px;
+    bottom: 60px;
+  }
+  
+  .logout-btn {
+    display: none;
+  }
+  
+  .map-controls {
+    top: 80px;
+    right: 8px;
+    gap: 6px;
+  }
+  
+  .map-controls button {
+    width: 38px;
+    height: 38px;
+    font-size: 13px;
+    padding: 8px;
+  }
+  
+  .cards {
+    bottom: 65px;
+    left: 8px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  
+  .card {
+    padding: 6px 10px;
+    font-size: 11px;
+    border-radius: 10px;
+  }
+  
+  .card i {
+    font-size: 16px;
+  }
+  
+  .card span {
+    font-size: 10px;
+  }
+  
+  .bottom-nav {
+    height: 60px;
+  }
+  
+  .bottom-nav div {
+    padding: 6px 0;
+  }
+  
+  .bottom-nav div i {
+    font-size: 16px;
+    margin-bottom: 2px;
+  }
+  
+  .bottom-nav div span {
+    font-size: 9px;
+  }
+}
+
+/* Móviles extra pequeños (360px) */
+@media (max-width: 360px) {
+  .topbar {
+    height: 48px;
+    padding: 0 6px;
+  }
+  
+  .topbar i {
+    font-size: 14px;
+    margin: 0 4px;
+  }
+  
+  .search {
+    max-width: 100px;
+    padding: 4px 8px;
+  }
+  
+  .search i {
+    font-size: 12px;
+    margin-right: 4px;
+  }
+  
+  .search input {
+    font-size: 11px;
+  }
+  
+  .sidebar, .notifications {
+    padding: 12px;
+  }
+  
+  .sidebar h3, .notifications h3 {
+    font-size: 14px;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+  }
+  
+  #map {
+    top: 48px;
+  }
+  
+  .map-controls {
+    top: 70px;
+    right: 6px;
+    gap: 5px;
+  }
+  
+  .map-controls button {
+    width: 34px;
+    height: 34px;
+    font-size: 12px;
+    padding: 6px;
+  }
+  
+  .cards {
+    bottom: 60px;
+    left: 6px;
+    gap: 6px;
+  }
+  
+  .card {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+  
+  .card i {
+    font-size: 14px;
+  }
+  
+  .bottom-nav {
+    height: 55px;
+  }
+  
+  .bottom-nav div {
+    padding: 4px 0;
+  }
+  
+  .bottom-nav div i {
+    font-size: 14px;
+    margin-bottom: 1px;
+  }
+  
+  .bottom-nav div span {
+    font-size: 8px;
+  }
+}
+
+/* ===== RESPONSIVE ANTERIOR ===== */
+@media (max-width: 768px) {
     max-width: 200px;
   }
   

@@ -1,5 +1,10 @@
-<aside class="sidebar">
-    <h2>Administrador</h2>
+<aside class="sidebar" id="admin-sidebar">
+    <div class="sidebar-header">
+        <h2>Administrador</h2>
+        <button class="sidebar-close" id="sidebar-close-btn" onclick="toggleSidebar()">
+            <i class="fa fa-times"></i>
+        </button>
+    </div>
     <nav>
         <ul>
             <li><a href="{{ url_for('admin_panel') }}"><i class="fa fa-home"></i> Inicio</a></li>
@@ -9,3 +14,30 @@
         </ul>
     </nav>
 </aside>
+
+<script>
+function toggleSidebar() {
+    const sidebar = document.getElementById('admin-sidebar');
+    sidebar.classList.toggle('active');
+}
+
+// Cerrar sidebar al hacer clic en un enlace (en móviles)
+document.addEventListener('DOMContentLoaded', function() {
+    const links = document.querySelectorAll('.sidebar a');
+    links.forEach(link => {
+        link.addEventListener('click', function() {
+            if (window.innerWidth <= 768) {
+                document.getElementById('admin-sidebar').classList.remove('active');
+            }
+        });
+    });
+    
+    // Cerrar sidebar al hacer clic fuera en móviles
+    document.addEventListener('click', function(e) {
+        const sidebar = document.getElementById('admin-sidebar');
+        if (window.innerWidth <= 768 && !sidebar.contains(e.target) && !e.target.closest('.sidebar-toggle')) {
+            sidebar.classList.remove('active');
+        }
+    });
+});
+</script>

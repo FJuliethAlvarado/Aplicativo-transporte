@@ -2,11 +2,17 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>{% block title %}Panel de Administración{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <!-- Botón toggle sidebar para móviles -->
+    <div class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()">
+        <i class="fa fa-bars"></i>
+    </div>
+    
     <div class="layout">
         {% include 'sidebar.html' %}
         <main class="admin-container">

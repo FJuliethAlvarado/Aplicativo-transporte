@@ -6,9 +6,13 @@ body {
 /* FONDO CON MONTAÑAS */
 .background {
     height: 100vh;
-    background: url("fondo.png") no-repeat center center/cover;
+    width: 100%;
+    background: url("fondo.png") no-repeat center center;
+    background-attachment: fixed;
+    background-size: cover;
     justify-content: center;
     align-items: center;
+    overflow: hidden;
 }
 .background {
     animation: zoomBg 10s ease-in-out infinite alternate;
@@ -20,6 +24,15 @@ body {
     }
     to {
         background-size: 110%;
+    }
+}
+
+/* Optimizar para móviles */
+@media (max-width: 768px) {
+    .background {
+        background-attachment: scroll;
+        animation: none;
+        background-size: cover;
     }
 }
 
@@ -241,5 +254,152 @@ body {
     max-width: 350px;
     margin: auto;
     padding: 20px;
+}
+
+/* ===== RESPONSIVE MEDIA QUERIES ===== */
+
+/* Tablets y pantallas medianas (768px) */
+@media (max-width: 768px) {
+    .card {
+        width: 90%;
+        max-width: 350px;
+        padding: 20px;
+    }
+    
+    .header .icon {
+        font-size: 32px;
+    }
+    
+    .header h1 {
+        font-size: 24px;
+        margin: 5px 0;
+    }
+    
+    .header p {
+        font-size: 12px;
+    }
+    
+    .input-group input {
+        padding: 10px 35px;
+        font-size: 14px;
+    }
+    
+    .card button {
+        padding: 10px;
+        font-size: 14px;
+    }
+    
+    .options {
+        flex-direction: column;
+        gap: 8px;
+        font-size: 11px;
+    }
+    
+    .register {
+        font-size: 12px;
+    }
+}
+
+/* Móviles pequeños (480px) */
+@media (max-width: 480px) {
+    .card {
+        width: 95%;
+        max-width: 100%;
+        padding: 15px;
+        border-radius: 15px;
+    }
+    
+    .header {
+        margin-bottom: 15px;
+    }
+    
+    .header .icon {
+        font-size: 28px;
+    }
+    
+    .header h1 {
+        font-size: 20px;
+        margin: 3px 0;
+    }
+    
+    .header p {
+        font-size: 11px;
+    }
+    
+    .card h3 {
+        font-size: 18px;
+        margin-bottom: 12px;
+    }
+    
+    .input-group input {
+        padding: 10px 30px;
+        font-size: 13px;
+        border-radius: 8px;
+    }
+    
+    .input-group {
+        margin-bottom: 12px;
+    }
+    
+    .card button {
+        padding: 10px;
+        font-size: 14px;
+        border-radius: 8px;
+    }
+    
+    .options {
+        flex-direction: column;
+        gap: 6px;
+        font-size: 11px;
+        margin: 8px 0;
+    }
+    
+    .options label {
+        margin-bottom: 5px;
+    }
+    
+    .options a {
+        display: block;
+        margin-top: 5px;
+    }
+    
+    .register {
+        font-size: 11px;
+        margin-top: 8px;
+    }
+    
+    .error {
+        font-size: 12px;
+        margin-top: 8px;
+    }
+    
+    .overlay {
+        padding: 15px;
+    }
+    
+    .form-container {
+        padding: 15px;
+        max-width: 100%;
+    }
+}
+
+/* Móviles extra pequeños (360px) */
+@media (max-width: 360px) {
+    .card {
+        padding: 12px;
+    }
+    
+    .header .icon {
+        font-size: 24px;
+    }
+    
+    .header h1 {
+        font-size: 18px;
+    }
+    
+    .input-group input {
+        padding: 8px 28px;
+        font-size: 12px;
+    }
 }
 

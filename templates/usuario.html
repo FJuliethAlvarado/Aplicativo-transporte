@@ -154,6 +154,29 @@ document.getElementById("notif-btn").addEventListener("click", ()=>{
   document.getElementById("notifications").classList.toggle("active");
   document.getElementById("sidebar").classList.remove("active");
 });
+
+// Cerrar paneles al hacer clic fuera
+document.addEventListener("click", (e) => {
+  const sidebar = document.getElementById("sidebar");
+  const notifications = document.getElementById("notifications");
+  const menuBtn = document.getElementById("menu-btn");
+  const notifBtn = document.getElementById("notif-btn");
+  
+  // Si el clic no está en sidebar, notificaciones o sus botones
+  if (!sidebar.contains(e.target) && !menuBtn.contains(e.target)) {
+    sidebar.classList.remove("active");
+  }
+  
+  if (!notifications.contains(e.target) && !notifBtn.contains(e.target)) {
+    notifications.classList.remove("active");
+  }
+});
+
+// Asegurar que los paneles inicien cerrados
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("sidebar").classList.remove("active");
+  document.getElementById("notifications").classList.remove("active");
+});
 </script>
 
 </body>
