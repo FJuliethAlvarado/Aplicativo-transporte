@@ -1,4 +1,4 @@
-# 🚍 Cajicá en Ruta  
+# Cajicá en Ruta  
 ### Plataforma de Transporte Inteligente con Diseño Responsive
 
 ![Status](https://img.shields.io/badge/status-en%20desarrollo-yellow)
@@ -9,13 +9,13 @@
 
 ---
 
-## 🌐 Demo Visual
+##  Demo Visual
 
-### 💻 Desktop
+### Desktop
 <img width="1828" height="891" alt="Captura de pantalla 2026-04-29 215140" src="https://github.com/user-attachments/assets/f32c6cf4-a5fb-4d6d-a3ea-04840bef6468" />
 <img width="1507" height="872" alt="Captura de pantalla 2026-04-29 215151" src="https://github.com/user-attachments/assets/0ad64f0d-784b-4f18-a9e6-41f355f228ee" />
 
-### 📱 Mobile
+### Mobile
 
 <img width="390" height="741" alt="Captura de pantalla 2026-04-29 215046" src="https://github.com/user-attachments/assets/102ad1c2-45ba-47d8-8a58-cb2fbba16b1c" />
 <img width="360" height="803" alt="Captura de pantalla 2026-04-29 215007" src="https://github.com/user-attachments/assets/c21eef06-ae1d-48d4-bd65-25dc4fc9e234" />
@@ -23,14 +23,14 @@
 
 ---
 
-## 🎯 Objetivo
+## Objetivo
 Hacer que la aplicación sea compatible tanto para **escritorio** como para **dispositivos móviles**, aplicando principios de **Responsive Web Design**.
 
 ---
 
-## 🚀 Características Principales
+##  Características Principales
 
-### 🗺️ Mapa de Usuario
+### Mapa de Usuario
 - Visualización de rutas en tiempo real  
 - Simulación de buses en movimiento  
 - Alternar sentido (Ida/Vuelta)  
@@ -40,7 +40,7 @@ Hacer que la aplicación sea compatible tanto para **escritorio** como para **di
 
 ---
 
-### 🛠️ Panel de Administración
+###  Panel de Administración
 - Crear y editar rutas con mapa interactivo  
 - Marcadores arrastrables  
 - Geocodificación inversa  
@@ -49,20 +49,20 @@ Hacer que la aplicación sea compatible tanto para **escritorio** como para **di
 
 ---
 
-## 📱 Responsive Design
+## Responsive Design
 
 ### Breakpoints utilizados
 | Dispositivo | Ancho |
 |------------|------|
-| 📱 Extra pequeño | 320px - 359px |
-| 📱 Móvil | 360px - 480px |
-| 📱 Móvil grande | 481px - 768px |
-| 📲 Tablet | 769px - 1024px |
-| 💻 Desktop | 1025px+ |
+| Extra pequeño | 320px - 359px |
+| Móvil | 360px - 480px |
+| Móvil grande | 481px - 768px |
+| Tablet | 769px - 1024px |
+| Desktop | 1025px+ |
 
 ---
 
-### 🔧 Implementaciones Responsive
+### Implementaciones Responsive
 
 #### Login & Register
 - Inputs full-width  
@@ -88,7 +88,7 @@ Hacer que la aplicación sea compatible tanto para **escritorio** como para **di
 
 ---
 
-## 🧠 Tecnologías Utilizadas
+##  Tecnologías Utilizadas
 
 ### Frontend
 - HTML5  
@@ -99,15 +99,18 @@ Hacer que la aplicación sea compatible tanto para **escritorio** como para **di
 - Python  
 - Flask  
 
-### APIs Externas
-- Leaflet.js  
-- OpenStreetMap  
-- OSRM (routing)  
-- Nominatim  
+## APIs Externas
+
+| API | Descripción | Uso en el proyecto |
+|-----|-------------|-------------------|
+| **Leaflet.js** | Biblioteca JavaScript para mapas interactivos | Renderizado del mapa, marcadores, capas, zoom/pan |
+| **OpenStreetMap** | Base de datos cartográfica colaborativa | Provee las capas base del mapa (calles, terrenos) |
+| **OSRM** | Motor de enrutamiento open-source | Cálculo de rutas, distancias y tiempos de viaje |
+| **Nominatim** | Servicio de geocodificación | Conversión entre direcciones y coordenadas |
 
 ---
 
-## 🔌 API Endpoints
+##  API Endpoints
 
 | Endpoint | Método | Descripción |
 |---------|--------|------------|
@@ -117,7 +120,7 @@ Hacer que la aplicación sea compatible tanto para **escritorio** como para **di
 
 ---
 
-## ⚙️ Funcionalidades JavaScript
+##  Funcionalidades JavaScript
 
 ### Usuario (Mapa)
 ```javascript
@@ -134,7 +137,7 @@ calcularRuta()          // Calcula ruta con OSRM
 actualizarRuta()        // Dibuja ida y vuelta en el mapa
 ```
 
-## 🧪 Testing
+## Testing
 
 ### Navegadores
 - Chrome DevTools  
@@ -142,16 +145,9 @@ actualizarRuta()        // Dibuja ida y vuelta en el mapa
 - Safari (iOS)  
 - Navegadores móviles  
 
-### Dispositivos
-- iPhone SE  
-- iPhone 12  
-- Samsung S21  
-- iPad / iPad Pro  
-- Laptop / Monitor  
-
 ---
 
-## ✅ Checklist
+## Checklist
 
 - ✔️ Diseño responsive completo  
 - ✔️ Mapa funcional en móvil  
@@ -163,7 +159,7 @@ actualizarRuta()        // Dibuja ida y vuelta en el mapa
 
 ---
 
-## ⚡ Performance
+##  Performance
 
 - Mobile-first design  
 - Uso de Flexbox y Grid  
@@ -173,7 +169,7 @@ actualizarRuta()        // Dibuja ida y vuelta en el mapa
 
 ---
 
-## ⚠️ Problemas y Soluciones
+##  Problemas y Soluciones
 
 | Problema | Solución |
 |----------|----------|
@@ -183,26 +179,26 @@ actualizarRuta()        // Dibuja ida y vuelta en el mapa
 
 ---
 
-## 🗺️ Roadmap
+##  Roadmap
 
-### 🔹 Corto Plazo
+### Corto Plazo
 - Mejorar UI del mapa  
 - Optimizar imágenes  
 - Panel de notificaciones  
 
-### 🔹 Mediano Plazo
+###  Mediano Plazo
 - PWA  
 - Gestos táctiles  
 - Modo offline parcial  
 
-### 🔹 Largo Plazo
+###  Largo Plazo
 - Dark mode  
 - Optimización avanzada  
 - Testing automatizado  
 
 ---
 
-## 📸 Vista del Sistema
+##  Vista del Sistema
 
 ### Desktop
 - Sidebar lateral  
@@ -220,7 +216,7 @@ actualizarRuta()        // Dibuja ida y vuelta en el mapa
 
 ---
 
-## 📚 Referencias
+##  Referencias
 - MDN Web Docs  
 - W3C  
 - Leaflet Docs  
@@ -228,7 +224,7 @@ actualizarRuta()        // Dibuja ida y vuelta en el mapa
 
 ---
 
-## 👩‍💻 Autores
+##  Autores
 
 **Julieth Alvarado & Laura Bernal**  
-Proyecto académico - Sistema de transporte inteligente 🚍
+Proyecto académico - Sistema de transporte inteligente 
