@@ -58,10 +58,10 @@ def login():
         correo = request.form['correo']
         password = request.form['password']
 
-
         user = User.query.filter_by(email=correo, password=password).first()
 
         if user:
+
             # SESIÓN
             session.clear()
             session['user_id'] = user.id
@@ -75,13 +75,10 @@ def login():
             elif user.tipo == "administrador":
                 return redirect(url_for('admin_panel'))
 
-        error = "Credenciales incorrectas"
+        else:
+            error = 'Correo o contraseña incorrectos'
 
     return render_template('login.html', error=error)
-
-
-
-# ===== REGISTER =====
 @app.route('/register', methods=['GET', 'POST'])
 def register():
 
@@ -306,4 +303,12 @@ with app.app_context():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    import os
+
+print("CARPETA ACTUAL:")
+print(os.getcwd())
+
+print("ARCHIVOS EN TEMPLATES:")
+print(os.listdir('templates'))
+app.run(debug=True)
+    
