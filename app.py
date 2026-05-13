@@ -303,12 +303,5 @@ with app.app_context():
 
 
 if __name__ == '__main__':
-    import os
-
-print("CARPETA ACTUAL:")
-print(os.getcwd())
-
-print("ARCHIVOS EN TEMPLATES:")
-print(os.listdir('templates'))
-app.run(debug=True)
+    app.run(debug=True)
     
