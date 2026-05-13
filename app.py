@@ -297,6 +297,31 @@ def logout():
     return redirect(url_for('login'))
 
 
+# ===== UBICACIÓN CONDUCTOR =====
+ubicacion_bus = {
+    "lat": 4.9186,
+    "lng": -74.0276
+}
+
+@app.route('/actualizar-ubicacion', methods=['POST'])
+def actualizar_ubicacion():
+
+    global ubicacion_bus
+
+    data = request.get_json(silent=True)
+    if not data or 'lat' not in data or 'lng' not in data:
+        return jsonify({
+            "mensaje": "Datos inválidos"
+        }), 400
+
+    ubicacion_bus['lat'] = data['lat']
+    ubicacion_bus['lng'] = data['lng']
+
+    return jsonify({
+        "mensaje": "Ubicación actualizada"
+    })
+
+
 # ===== CREAR TABLAS =====
 with app.app_context():
     db.create_all()
@@ -305,3 +330,4 @@ with app.app_context():
 if __name__ == '__main__':
     app.run(debug=True)
     
+

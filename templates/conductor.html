@@ -58,6 +58,7 @@
 
     // Verificar geolocalización
     if (navigator.geolocation) {
+        console.log('Geolocalización activa, solicitando posición...');
 
         navigator.geolocation.watchPosition(
 
@@ -67,7 +68,7 @@
                 const lat = position.coords.latitude;
                 const lng = position.coords.longitude;
 
-                console.log(lat, lng);
+                console.log('Posición recibida:', lat, lng);
 
                 // mover marcador
                 marker.setLatLng([lat, lng]);
@@ -75,19 +76,49 @@
                 // mover mapa
                 map.setView([lat, lng], 16);
 
+                // ENVIAR UBICACIÓN A FLASK
+                fetch('/actualizar-ubicacion', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        lat: lat,
+                        lng: lng
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Respuesta del servidor ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Servidor:', data);
+                })
+                .catch(err => {
+                    console.error('Error enviando ubicación:', err);
+                    alert('No se pudo enviar la ubicación al servidor. Revisa la consola y el servidor.');
+                });
+
             },
 
             // error
             function(error){
-
-                console.log("Error GPS:", error);
-
+                const mensajes = {
+                    1: 'Permiso denegado. Habilita la ubicación en tu navegador.',
+                    2: 'Ubicación no disponible. Activa el GPS o prueba en otro dispositivo.',
+                    3: 'Tiempo de espera agotado. Intenta de nuevo.',
+                };
+                const mensaje = mensajes[error.code] || 'Error de geolocalización.';
+                console.error('Error GPS:', error);
+                alert(`${mensaje} (${error.message})`);
             },
 
             // opciones
             {
                 enableHighAccuracy: true,
-                timeout: 5000,
+                timeout: 15000,
                 maximumAge: 0
             }
 
@@ -100,6 +131,5 @@
     }
 
 </script>
-
 </body>
 </html>
