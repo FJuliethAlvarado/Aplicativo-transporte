@@ -46,15 +46,58 @@
     // Crear mapa
     const map = L.map('map').setView([4.9186, -74.0276], 13);
 
-    // Capa OpenStreetMap
+    // OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: 'OpenStreetMap'
     }).addTo(map);
 
-    // Marcador bus
-    L.marker([4.9186, -74.0276])
+    // Marcador inicial
+    let marker = L.marker([4.9186, -74.0276])
         .addTo(map)
-        .bindPopup("Bus en ruta");
+        .bindPopup("Bus conductor");
+
+    // Verificar geolocalización
+    if (navigator.geolocation) {
+
+        navigator.geolocation.watchPosition(
+
+            // éxito
+            function(position){
+
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+
+                console.log(lat, lng);
+
+                // mover marcador
+                marker.setLatLng([lat, lng]);
+
+                // mover mapa
+                map.setView([lat, lng], 16);
+
+            },
+
+            // error
+            function(error){
+
+                console.log("Error GPS:", error);
+
+            },
+
+            // opciones
+            {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            }
+
+        );
+
+    } else {
+
+        alert("Tu navegador no soporta geolocalización");
+
+    }
 
 </script>
 
