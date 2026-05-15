@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Conductor</title>
+
+    <!-- Leaflet -->
+    <link rel="stylesheet"
+    href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+    <style>
+
+        body{
+            margin:0;
+            font-family:Arial, sans-serif;
+        }
+
+        .navbar{
+            background:#0d6efd;
+            color:white;
+            padding:15px;
+            text-align:center;
+        }
+
+        #map{
+            width:100%;
+            height:90vh;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>Panel del Conductor</h2>
+</div>
+
+<div id="map"></div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+
+    // Crear mapa
+    const map = L.map('map').setView([4.9186, -74.0276], 13);
+
+    // OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'OpenStreetMap'
+    }).addTo(map);
+
+    // Marcador inicial
+    let marker = L.marker([4.9186, -74.0276])
+        .addTo(map)
+        .bindPopup("Bus conductor");
+
+    // Verificar geolocalización
+    if (navigator.geolocation) {
+        console.log('Geolocalización activa, solicitando posición...');
+
+        navigator.geolocation.watchPosition(
+
+            // éxito
+            function(position){
+
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+
+                console.log('Posición recibida:', lat, lng);
+
+                // mover marcador
+                marker.setLatLng([lat, lng]);
+
+                // mover mapa
+                map.setView([lat, lng], 16);
+
+                // ENVIAR UBICACIÓN A FLASK
+                fetch('/actualizar-ubicacion', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        lat: lat,
+                        lng: lng
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Respuesta del servidor ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Servidor:', data);
+                })
+                .catch(err => {
+                    console.error('Error enviando ubicación:', err);
+                    alert('No se pudo enviar la ubicación al servidor. Revisa la consola y el servidor.');
+                });
+
+            },
+
+            // error
+            function(error){
+                const mensajes = {
+                    1: 'Permiso denegado. Habilita la ubicación en tu navegador.',
+                    2: 'Ubicación no disponible. Activa el GPS o prueba en otro dispositivo.',
+                    3: 'Tiempo de espera agotado. Intenta de nuevo.',
+                };
+                const mensaje = mensajes[error.code] || 'Error de geolocalización.';
+                console.error('Error GPS:', error);
+                alert(`${mensaje} (${error.message})`);
+            },
+
+            // opciones
+            {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 0
+            }
+
+        );
+
+    } else {
+
+        alert("Tu navegador no soporta geolocalización");
+
+    }
+
+</script>
+</body>
+</html>

@@ -58,10 +58,10 @@ def login():
         correo = request.form['correo']
         password = request.form['password']
 
-
         user = User.query.filter_by(email=correo, password=password).first()
 
         if user:
+
             # SESIÓN
             session.clear()
             session['user_id'] = user.id
@@ -75,13 +75,10 @@ def login():
             elif user.tipo == "administrador":
                 return redirect(url_for('admin_panel'))
 
-        error = "Credenciales incorrectas"
+        else:
+            error = 'Correo o contraseña incorrectos'
 
     return render_template('login.html', error=error)
-
-
-
-# ===== REGISTER =====
 @app.route('/register', methods=['GET', 'POST'])
 def register():
 
@@ -300,6 +297,37 @@ def logout():
     return redirect(url_for('login'))
 
 
+# ===== UBICACIÓN CONDUCTOR =====
+ubicacion_bus = {
+    "lat": 4.9186,
+    "lng": -74.0276
+}
+
+@app.route('/actualizar-ubicacion', methods=['POST'])
+def actualizar_ubicacion():
+
+    global ubicacion_bus
+
+    data = request.get_json(silent=True)
+    if not data or 'lat' not in data or 'lng' not in data:
+        return jsonify({
+            "mensaje": "Datos inválidos"
+        }), 400
+
+    ubicacion_bus['lat'] = data['lat']
+    ubicacion_bus['lng'] = data['lng']
+
+    return jsonify({
+        "mensaje": "Ubicación actualizada"
+    })
+
+# ===== OBTENER UBICACIÓN =====
+@app.route('/obtener-ubicacion')
+def obtener_ubicacion():
+
+    return jsonify(ubicacion_bus)
+
+
 # ===== CREAR TABLAS =====
 with app.app_context():
     db.create_all()
@@ -307,3 +335,5 @@ with app.app_context():
 
 if __name__ == '__main__':
     app.run(debug=True)
+    
+

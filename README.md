@@ -1,5 +1,4 @@
-# Cajicá en Ruta
-
+# RouteX
 Plataforma web para la visualización de rutas de transporte público en tiempo real en el municipio de Cajicá.  
 **Diseño responsive** compatible con escritorio, tablet y dispositivos móviles.
 

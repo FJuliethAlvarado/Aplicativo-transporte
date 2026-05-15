@@ -88,6 +88,7 @@ var todasLasRutas = [];      // Almacena todas las rutas originales
 var rutasVisibles = [];      // Almacena las rutas actualmente visibles
 var sentidoActual = 'ida';
 var busActivo = null;
+var busConductor = null;
 var intervaloBus = null;
 var busIntervaloId = null;
 
@@ -371,6 +372,46 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
     }
 }
 
+// ==================== BUS EN TIEMPO REAL ====================
+async function obtenerUbicacionBus() {
+
+    try {
+
+        const response = await fetch('/obtener-ubicacion');
+        const data = await response.json();
+
+        const lat = data.lat;
+        const lng = data.lng;
+
+        // Si no existe el marcador, crearlo
+        if (!busConductor) {
+
+            const iconoBus = L.divIcon({
+                html: '<i class="fa fa-bus" style="font-size:35px;color:#ff0000;"></i>',
+                iconSize: [35, 35],
+                className: ''
+            });
+
+            busConductor = L.marker([lat, lng], {
+                icon: iconoBus
+            }).addTo(map);
+
+            busConductor.bindPopup("🚌 Bus en tiempo real");
+
+        } else {
+
+            // mover marcador
+            busConductor.setLatLng([lat, lng]);
+
+        }
+
+    } catch(error) {
+
+        console.log("Error obteniendo ubicación:", error);
+
+    }
+
+}
 // ==================== EVENT LISTENERS ====================
 map.on('locationfound', e => {
     L.marker(e.latlng).addTo(map)
@@ -416,6 +457,10 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("notifications").classList.remove("active");
     cargarRutas();
 });
+
+// actualizar ubicación cada 3 segundos
+setInterval(obtenerUbicacionBus, 3000);
+
 </script>
 
 </body>
