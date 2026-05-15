@@ -321,6 +321,12 @@ def actualizar_ubicacion():
         "mensaje": "Ubicación actualizada"
     })
 
+# ===== OBTENER UBICACIÓN =====
+@app.route('/obtener-ubicacion')
+def obtener_ubicacion():
+
+    return jsonify(ubicacion_bus)
+
 
 # ===== CREAR TABLAS =====
 with app.app_context():
