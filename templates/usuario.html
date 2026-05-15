@@ -168,9 +168,8 @@ function dibujarRuta(ruta) {
         // Dibujar línea de la ruta
         const rutaLine = L.polyline(coordenadas, {
             color: color,
-            weight: 6,
-            opacity: 0.85,
-            smoothFactor: 1
+            weight: 5,
+            opacity: 0.8
         }).addTo(map);
         
         // Popup con información y botón de simulación
@@ -194,9 +193,8 @@ function dibujarRuta(ruta) {
         // Marcador de origen
         const origenMarker = L.marker(coordenadas[0], {
             icon: L.divIcon({
-                html: '<i class="fa fa-location-arrow" style="font-size: 28px; color: #16a34a; transform: rotate(0deg); text-shadow: 0 0 3px white;"></i>',
-                iconSize: [28, 28],
-                className: 'origen-icon'
+                html: '<i class="fa fa-map-marker" style="font-size: 28px; color: green; text-shadow: 0 0 3px white;"></i>',
+                iconSize: [28, 28]
             })
         }).addTo(map);
         origenMarker.bindPopup(`<b>📍 ORIGEN</b><br>${origenTexto}`);
@@ -204,9 +202,8 @@ function dibujarRuta(ruta) {
         // Marcador de destino
         const destinoMarker = L.marker(coordenadas[coordenadas.length - 1], {
             icon: L.divIcon({
-                html: '<i class="fa fa-flag-checkered" style="font-size: 28px; color: #dc2626; text-shadow: 0 0 3px white;"></i>',
-                iconSize: [28, 28],
-                className: 'destino-icon'
+                html: '<i class="fa fa-map-marker" style="font-size: 28px; color: red; text-shadow: 0 0 3px white;"></i>',
+                iconSize: [28, 28]
             })
         }).addTo(map);
         destinoMarker.bindPopup(`<b>🏁 DESTINO</b><br>${destinoTexto}`);
@@ -384,14 +381,69 @@ map.on('locationfound', e => {
 });
 
 // Paneles laterales
-document.getElementById("menu-btn").addEventListener("click", () => {
+document.getElementById("menu-btn").addEventListener("click", (e) => {
+    e.stopPropagation();
     document.getElementById("sidebar").classList.toggle("active");
     document.getElementById("notifications").classList.remove("active");
 });
 
-document.getElementById("notif-btn").addEventListener("click", () => {
+document.getElementById("notif-btn").addEventListener("click", (e) => {
+    e.stopPropagation();
     document.getElementById("notifications").classList.toggle("active");
     document.getElementById("sidebar").classList.remove("active");
+});
+
+// Cerrar paneles al hacer clic en el mapa o fuera
+document.addEventListener("click", (e) => {
+    const sidebar = document.getElementById("sidebar");
+    const notifications = document.getElementById("notifications");
+    const menuBtn = document.getElementById("menu-btn");
+    const notifBtn = document.getElementById("notif-btn");
+    
+    // Si el clic está fuera de los paneles y los botones
+    if (!sidebar.contains(e.target) && !notifications.contains(e.target) && 
+        !menuBtn.contains(e.target) && !notifBtn.contains(e.target)) {
+        sidebar.classList.remove("active");
+        notifications.classList.remove("active");
+    }
+});
+
+// Cerrar paneles al hacer clic en el mapa (especialmente en móvil)
+map.on('click', () => {
+    document.getElementById("sidebar").classList.remove("active");
+    document.getElementById("notifications").classList.remove("active");
+});
+
+// Bottom nav items
+const bottomNavItems = document.querySelectorAll('.bottom-nav > div');
+bottomNavItems.forEach((item, index) => {
+    item.addEventListener('click', function() {
+        // Remover active de todos
+        bottomNavItems.forEach(nav => nav.classList.remove('active'));
+        // Agregar active al clickeado
+        this.classList.add('active');
+        
+        // Ejecutar acción según índice
+        switch(index) {
+            case 0: // Inicio
+                mostrarNotificacion('Estás en el inicio', 'info');
+                break;
+            case 1: // Rutas
+                mostrarTodasRutas();
+                mostrarNotificacion('Mostrando todas las rutas', 'info');
+                break;
+            case 2: // Favoritos
+                mostrarNotificacion('Función de favoritos - Próximamente', 'info');
+                break;
+            case 3: // Perfil
+                mostrarNotificacion('Abriendo perfil...', 'info');
+                window.location.href = "/perfil-usuario";
+                break;
+            case 4: // Cerrar sesión
+                cerrarSesion();
+                break;
+        }
+    });
 });
 
 // Buscador
@@ -418,6 +470,13 @@ document.getElementById("search-input").addEventListener("input", (e) => {
 document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("sidebar").classList.remove("active");
     document.getElementById("notifications").classList.remove("active");
+    
+    // Establecer "Inicio" como activo por defecto
+    const bottomNavItems = document.querySelectorAll('.bottom-nav > div');
+    if (bottomNavItems.length > 0) {
+        bottomNavItems[0].classList.add('active');
+    }
+    
     cargarRutas();
 });
 
