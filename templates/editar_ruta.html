@@ -1,0 +1,473 @@
+{% extends "admin.html" %}
+
+{% block title %}Editar Ruta - Administrador{% endblock %}
+
+{% block content %}
+<div class="admin-section">
+    <div class="section-header">
+        <h1><i class="fa fa-edit"></i> Editar Ruta</h1>
+        <p>Modifica los datos de la ruta seleccionada</p>
+    </div>
+
+    <div class="form-container">
+        <form method="post" class="edit-ruta-form">
+            <!-- NOMBRE DE LA RUTA -->
+            <div class="form-group">
+                <label for="nombre">
+                    <i class="fa fa-tag"></i> Nombre de la Ruta
+                </label>
+                <input type="text" id="nombre" name="nombre" value="{{ ruta.nombre }}" required 
+                       placeholder="Ej: Ruta Centro - Terminal">
+                <small>Nombre identificador de la ruta</small>
+            </div>
+
+            <!-- ORIGEN -->
+            <div class="form-group">
+                <label for="origen">
+                    <i class="fa fa-map-marker-alt" style="color: green;"></i> Origen
+                </label>
+                <input type="text" id="origen" name="origen" value="{{ ruta.origen }}" required 
+                       placeholder="Ej: Terminal del Norte">
+                <small>Punto de partida de la ruta</small>
+            </div>
+
+            <!-- DESTINO -->
+            <div class="form-group">
+                <label for="destino">
+                    <i class="fa fa-map-marker-alt" style="color: red;"></i> Destino
+                </label>
+                <input type="text" id="destino" name="destino" value="{{ ruta.destino }}" required 
+                       placeholder="Ej: Parque Principal">
+                <small>Punto de llegada de la ruta</small>
+            </div>
+
+            <!-- HORARIO -->
+            <div class="form-group">
+                <label for="horario">
+                    <i class="fa fa-clock"></i> Horario
+                </label>
+                <input type="time" id="horario" name="horario" value="{{ ruta.horario }}" required>
+                <small>Horario de salida (formato 24 horas)</small>
+            </div>
+
+            <!-- TIPO DE RUTA -->
+            <div class="form-group">
+                <label for="tipo">
+                    <i class="fa fa-route"></i> Tipo de Ruta
+                </label>
+                <select id="tipo" name="tipo" required>
+                    <option value="interna" {% if ruta.tipo == 'interna' %}selected{% endif %}>
+                        <i class="fa fa-city"></i> Interna (Dentro del municipio)
+                    </option>
+                    <option value="intermunicipal" {% if ruta.tipo == 'intermunicipal' %}selected{% endif %}>
+                        <i class="fa fa-road"></i> Intermunicipal (Entre municipios)
+                    </option>
+                </select>
+                <small>Clasificación de la ruta según su alcance</small>
+            </div>
+
+            <!-- ASIGNAR CONDUCTOR -->
+            <div class="form-group">
+                <label for="conductor">
+                    <i class="fa fa-user-shield"></i> Asignar Conductor
+                </label>
+                <select id="conductor" name="conductor_id">
+                    <option value="">-- Sin conductor asignado --</option>
+                    {% for conductor in conductores %}
+                    <option value="{{ conductor.id }}" {% if ruta.conductor_id == conductor.id %}selected{% endif %}>
+                        <i class="fa fa-bus"></i> {{ conductor.username }} - {{ conductor.email }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <small>Selecciona el conductor responsable de esta ruta</small>
+            </div>
+
+            <!-- INFORMACIÓN ADICIONAL DE LA RUTA -->
+            <div class="info-box">
+                <h4><i class="fa fa-info-circle"></i> Información adicional</h4>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">ID de Ruta:</span>
+                        <span class="info-value">{{ ruta.id }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Fecha creación:</span>
+                        <span class="info-value">{{ ruta.created_at if ruta.created_at else 'N/A' }}</span>
+                    </div>
+                    {% if ruta.coordenadas_ida %}
+                    <div class="info-item">
+                        <span class="info-label">Estado:</span>
+                        <span class="info-value badge-success">Con coordenadas</span>
+                    </div>
+                    {% else %}
+                    <div class="info-item">
+                        <span class="info-label">Estado:</span>
+                        <span class="info-value badge-warning">Sin coordenadas</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- BOTONES DE ACCIÓN -->
+            <div class="form-actions">
+                <button type="submit" class="btn-primary">
+                    <i class="fa fa-save"></i> Guardar Cambios
+                </button>
+                <a href="{{ url_for('admin_rutas') }}" class="btn-secondary">
+                    <i class="fa fa-times"></i> Cancelar
+                </a>
+                {% if ruta.id %}
+                <button type="button" class="btn-danger" onclick="confirmarEliminacion({{ ruta.id }})">
+                    <i class="fa fa-trash"></i> Eliminar Ruta
+                </button>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal de confirmación para eliminar -->
+<div id="deleteModal" class="modal">
+    <div class="modal-content">
+        <h3><i class="fa fa-exclamation-triangle"></i> Confirmar eliminación</h3>
+        <p>¿Estás seguro de que deseas eliminar la ruta <strong>"{{ ruta.nombre }}"</strong>?</p>
+        <p class="warning">Esta acción no se puede deshacer.</p>
+        <div class="modal-actions">
+            <button class="btn-danger" onclick="eliminarRuta({{ ruta.id }})">
+                <i class="fa fa-trash"></i> Sí, eliminar
+            </button>
+            <button class="btn-secondary" onclick="cerrarModal()">
+                <i class="fa fa-times"></i> Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+.admin-section {
+    padding: 20px;
+}
+
+.section-header {
+    margin-bottom: 25px;
+}
+
+.section-header h1 {
+    font-size: 1.8rem;
+    color: #e2e8f0;
+    margin-bottom: 5px;
+}
+
+.section-header h1 i {
+    color: #0ea5e9;
+    margin-right: 10px;
+}
+
+.section-header p {
+    color: #94a3b8;
+    font-size: 0.9rem;
+}
+
+.form-container {
+    background: #111827;
+    border-radius: 16px;
+    padding: 30px;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #e2e8f0;
+    font-size: 0.9rem;
+}
+
+.form-group label i {
+    margin-right: 8px;
+    color: #0ea5e9;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    font-size: 0.95rem;
+    background: #1e293b;
+    color: #e2e8f0;
+    transition: all 0.3s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 3px rgba(14,165,233,0.1);
+}
+
+.form-group input::placeholder {
+    color: #64748b;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+/* Info Box */
+.info-box {
+    background: #1e293b;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 25px 0;
+    border-left: 4px solid #0ea5e9;
+}
+
+.info-box h4 {
+    margin-bottom: 15px;
+    color: #e2e8f0;
+    font-size: 1rem;
+}
+
+.info-box h4 i {
+    color: #0ea5e9;
+    margin-right: 8px;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.info-label {
+    color: #94a3b8;
+    font-size: 0.85rem;
+}
+
+.info-value {
+    color: #e2e8f0;
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+
+.badge-success {
+    background: rgba(34,197,94,0.15);
+    color: #22c55e;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+}
+
+.badge-warning {
+    background: rgba(245,158,11,0.15);
+    color: #f59e0b;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+}
+
+/* Botones */
+.form-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+    flex-wrap: wrap;
+}
+
+.btn-primary {
+    background: #0ea5e9;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(14,165,233,0.3);
+}
+
+.btn-secondary {
+    background: #475569;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-secondary:hover {
+    background: #334155;
+    transform: translateY(-2px);
+}
+
+.btn-danger {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+    transform: translateY(-2px);
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: #1e293b;
+    padding: 30px;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.modal-content h3 {
+    color: #ef4444;
+    margin-bottom: 15px;
+}
+
+.modal-content h3 i {
+    margin-right: 8px;
+}
+
+.modal-content p {
+    color: #cbd5e1;
+    margin-bottom: 10px;
+}
+
+.modal-content .warning {
+    color: #f59e0b;
+    font-size: 0.85rem;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .form-container {
+        padding: 20px;
+    }
+    
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .form-actions button,
+    .form-actions a {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .section-header h1 {
+        font-size: 1.4rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .form-container {
+        padding: 15px;
+    }
+    
+    .form-group input,
+    .form-group select {
+        padding: 10px 12px;
+        font-size: 0.85rem;
+    }
+}
+</style>
+
+<script>
+function confirmarEliminacion(rutaId) {
+    document.getElementById('deleteModal').classList.add('active');
+}
+
+function cerrarModal() {
+    document.getElementById('deleteModal').classList.remove('active');
+}
+
+function eliminarRuta(rutaId) {
+    window.location.href = "/admin/ruta/eliminar/" + rutaId;
+}
+
+// Cerrar modal al hacer clic fuera
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('deleteModal');
+    if (modal && modal.classList.contains('active')) {
+        if (e.target === modal) {
+            modal.classList.remove('active');
+        }
+    }
+});
+</script>
+{% endblock %}

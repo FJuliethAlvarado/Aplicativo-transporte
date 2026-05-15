@@ -1,0 +1,454 @@
+{% extends "admin.html" %}
+
+{% block title %}Gestión de Conductores - Administrador{% endblock %}
+
+{% block content %}
+<div class="admin-section">
+    <div class="section-header">
+        <h1><i class="fa fa-user-shield"></i> Gestión de Conductores</h1>
+        <button class="btn-primary" onclick="mostrarModalNuevoConductor()">
+            <i class="fa fa-plus"></i> Nuevo Conductor
+        </button>
+    </div>
+
+    <!-- Lista de conductores -->
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Email</th>
+                    <th>Ruta Asignada</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for conductor in conductores %}
+                <tr id="conductor-{{ conductor.id }}">
+                    <td>{{ conductor.id }}</td>
+                    <td>{{ conductor.username }}</td>
+                    <td>{{ conductor.email }}</td>
+                    <td>
+                        {% if conductor.ruta_asignada %}
+                            <span class="badge-info">
+                                <i class="fa fa-route"></i> {{ conductor.ruta_asignada.nombre }}
+                            </span>
+                        {% else %}
+                            <span class="badge-warning">Sin ruta</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge-success">
+                            <i class="fa fa-circle" style="font-size: 10px;"></i> Activo
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn-small" onclick="mostrarModalAsignarRuta({{ conductor.id }})">
+                            <i class="fa fa-exchange-alt"></i> Asignar Ruta
+                        </button>
+                        <button class="btn-small btn-danger" onclick="eliminarConductor({{ conductor.id }})">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal para asignar ruta -->
+<div id="modalAsignarRuta" class="modal">
+    <div class="modal-content">
+        <h3><i class="fa fa-route"></i> Asignar Ruta a Conductor</h3>
+        <select id="rutaSelect" class="form-control">
+            <option value="">-- Seleccionar ruta --</option>
+            {% for ruta in rutas %}
+            <option value="{{ ruta.id }}">{{ ruta.nombre }} - {{ ruta.origen }} → {{ ruta.destino }}</option>
+            {% endfor %}
+        </select>
+        <div class="modal-actions">
+            <button class="btn-primary" onclick="guardarAsignacion()">Guardar</button>
+            <button class="btn-secondary" onclick="cerrarModal('modalAsignarRuta')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para nuevo conductor -->
+<div id="modalNuevoConductor" class="modal">
+    <div class="modal-content">
+        <h3><i class="fa fa-user-plus"></i> Nuevo Conductor</h3>
+        <form id="formNuevoConductor">
+            <input type="text" id="username" placeholder="Nombre de usuario" required>
+            <input type="email" id="email" placeholder="Email" required>
+            <input type="password" id="password" placeholder="Contraseña" required>
+            <div class="modal-actions">
+                <button type="submit" class="btn-primary">Crear Conductor</button>
+                <button type="button" class="btn-secondary" onclick="cerrarModal('modalNuevoConductor')">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.admin-section {
+    padding: 20px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.section-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #0f172a;
+}
+
+.table-container {
+    overflow-x: auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid #e2e8f0;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px 15px;
+    color:#0f172a;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.data-table th {
+    background: #f1f5f9;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.data-table tr:hover {
+    background: #f8fafc;
+}
+
+.badge-info {
+    background: #e0f2fe;
+    color: #0369a1;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.badge-warning {
+    background: #fed7aa;
+    color: #9a3412;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.badge-success {
+    background: #d1fae5;
+    color: #047857;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    margin: 0 2px;
+    font-size: 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-small:hover {
+    transform: translateY(-1px);
+}
+
+.btn-danger {
+    background: #ef4444;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+}
+
+.btn-primary {
+    background: #0ea5e9;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    background: #0284c7;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: #64748b;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: #475569;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: white;
+    padding: 25px;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 450px;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+}
+
+.modal-content h3 {
+    margin: 0 0 15px 0;
+    color: #0f172a;
+    font-size: 1.25rem;
+}
+
+.modal-content h3 i {
+    margin-right: 8px;
+    color: #0ea5e9;
+}
+
+.modal-content input,
+.modal-content select {
+    width: 100%;
+    padding: 10px 12px;
+    margin: 10px 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.modal-content input:focus,
+.modal-content select:focus {
+    outline: none;
+    border-color: #0ea5e9;
+    ring: 2px solid #0ea5e9;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .section-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .section-header button {
+        width: 100%;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+    
+    .btn-small {
+        padding: 4px 8px;
+        font-size: 10px;
+    }
+}
+</style>
+
+<script>
+let conductorActual = null;
+
+function mostrarModalAsignarRuta(conductorId) {
+    conductorActual = conductorId;
+    document.getElementById('modalAsignarRuta').classList.add('active');
+}
+
+function mostrarModalNuevoConductor() {
+    document.getElementById('modalNuevoConductor').classList.add('active');
+}
+
+function cerrarModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+}
+
+async function guardarAsignacion() {
+    const rutaId = document.getElementById('rutaSelect').value;
+    if (!rutaId) {
+        alert('Seleccione una ruta');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/admin/conductor/asignar_ruta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                conductor_id: conductorActual,
+                ruta_id: rutaId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Obtener el nombre de la ruta seleccionada
+            const select = document.getElementById('rutaSelect');
+            const selectedOption = select.options[select.selectedIndex];
+            const rutaNombre = selectedOption.text.split(' - ')[0];
+            
+            // Actualizar la fila sin recargar
+            const row = document.getElementById(`conductor-${conductorActual}`);
+            if (row) {
+                const badgeCell = row.children[3];
+                badgeCell.innerHTML = `<span class="badge-info"><i class="fa fa-route"></i> ${rutaNombre}</span>`;
+            }
+            alert('Ruta asignada correctamente');
+            cerrarModal('modalAsignarRuta');
+        } else {
+            alert(data.error || 'Error al asignar ruta');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error de conexión');
+    }
+}
+
+document.getElementById('formNuevoConductor')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const username = document.getElementById('username').value;
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    
+    if (!username || !email || !password) {
+        alert('Por favor complete todos los campos');
+        return;
+    }
+    
+    const formData = {
+        username: username,
+        email: email,
+        password: password,
+        tipo: 'conductor'
+    };
+    
+    try {
+        const response = await fetch('/admin/crear_usuario', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+        
+        if (response.ok) {
+            alert('Conductor creado exitosamente');
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert(error.error || 'Error al crear conductor');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error de conexión');
+    }
+});
+
+function eliminarConductor(id) {
+    if (confirm('¿Estás seguro de eliminar este conductor?')) {
+        fetch(`/admin/eliminar_usuario/${id}`, { method: 'DELETE' })
+            .then(response => {
+                if (response.ok) {
+                    alert('Conductor eliminado');
+                    location.reload();
+                } else {
+                    alert('Error al eliminar');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error de conexión');
+            });
+    }
+}
+
+// Cerrar modales al hacer clic fuera
+document.addEventListener('click', function(e) {
+    const modales = document.querySelectorAll('.modal');
+    modales.forEach(modal => {
+        if (modal.classList.contains('active')) {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

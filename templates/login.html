@@ -2,11 +2,428 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Cajicá en Ruta</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>RouteX - Iniciar sesión</title>
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            color: #e2e8f0;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+
+            background: url("/static/fondo.png") center/cover no-repeat;
+
+            filter: blur(6px);
+            transform: scale(1.08);
+
+            z-index: -2;
+        }
+
+        /* Capa oscura encima  */
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+
+            background: linear-gradient(
+                135deg,
+                rgba(2,6,23,0.85),
+                rgba(15,23,42,0.85),
+                rgba(17,24,39,0.9)
+            );
+
+            z-index: -1;
+        }
+
+        /* LOADER */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #020617;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(14, 165, 233, 0.2);
+            border-top: 4px solid #0ea5e9;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #loader p {
+            margin-top: 15px;
+            color: #0ea5e9;
+        }
+
+        /* TOPBAR */
+        .topbar {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+        }
+
+        .logo .icon {
+            font-size: 1.8rem;
+            margin-right: 5px;
+        }
+
+        .topbar nav {
+            display: flex;
+            gap: 25px;
+        }
+
+        .topbar nav a {
+            color: #cbd5e1;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+
+        .topbar nav a:hover {
+            color: #0ea5e9;
+            background: rgba(14, 165, 233, 0.1);
+        }
+
+        /* Botón menú móvil */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+        }
+
+        /* Menú móvil desplegable */
+        .mobile-menu {
+            display: none;
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 0;
+            background: #0f172a;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 999;
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .mobile-menu.active {
+            display: flex;
+        }
+
+        .mobile-menu a {
+            color: #e2e8f0;
+            text-decoration: none;
+            padding: 12px;
+            text-align: center;
+            background: #1e293b;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .mobile-menu a:hover {
+            background: #0ea5e9;
+            color: white;
+        }
+
+        /* CONTENEDOR PRINCIPAL */
+        .main-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 100px 20px 60px;
+        }
+
+        /* HEADER */
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header .icon {
+            font-size: 4rem;
+            margin-bottom: 10px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header h1 span {
+            color: #0ea5e9;
+        }
+
+        .header p {
+            color: #94a3b8;
+            font-size: 1rem;
+        }
+
+        /* CARD LOGIN */
+        .card {
+            background: rgba(17, 24, 39, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 25px 45px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.08);
+            transition: transform 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card h3 {
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 1.5rem;
+            color: white;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-img {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        /* INPUT GROUP */
+        .input-group {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .input-group i:first-child {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+            font-size: 1rem;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 14px 15px 14px 45px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            font-size: 1rem;
+            background: rgba(30, 41, 59, 0.8);
+            color: #e2e8f0;
+            transition: all 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #0ea5e9;
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+        }
+
+        .password-group .toggle-password {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #64748b;
+            transition: color 0.3s;
+        }
+
+        .password-group .toggle-password:hover {
+            color: #0ea5e9;
+        }
+
+        /* OPCIONES */
+        .options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            font-size: 0.85rem;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .options label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            color: #94a3b8;
+        }
+
+        .options a {
+            color: #0ea5e9;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .options a:hover {
+            color: #60a5fa;
+        }
+
+        .header .icon img {
+            width: 45px;
+            height: 45px;
+            object-fit: contain;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+
+        /* BOTÓN */
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: #0ea5e9;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(14, 165, 233, 0.3);
+        }
+
+        /* ERROR */
+        .error {
+            background: rgba(220, 38, 38, 0.1);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+            color: #ef4444;
+            padding: 12px;
+            border-radius: 10px;
+            margin-top: 15px;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+
+        /* REGISTRO */
+        .register {
+            text-align: center;
+            margin-top: 25px;
+            color: #94a3b8;
+        }
+
+        .register a {
+            color: #0ea5e9;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .register a:hover {
+            text-decoration: underline;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .topbar nav {
+                display: none;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .card {
+                padding: 30px 25px;
+                margin: 0 15px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .options {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .card {
+                padding: 25px 20px;
+            }
+
+            .header .icon {
+                font-size: 3rem;
+            }
+
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .input-group input {
+                padding: 12px 15px 12px 40px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
 </head>
 
 <body>
@@ -14,16 +431,25 @@
 <!-- LOADER -->
 <div id="loader">
     <div class="spinner"></div>
-    <p>Cargando...</p>
+    <p>Cargando RouteX...</p>
 </div>
 
-<div class="background">
-    <div class="overlay">
 
+<!-- MENÚ MÓVIL -->
+<div class="mobile-menu" id="mobileMenu">
+    <a href="{{ url_for('home') }}">Inicio</a>
+    <a href="{{ url_for('register') }}">Registrarse</a>
+</div>
+
+<!-- CONTENEDOR PRINCIPAL -->
+<div class="main-container">
+    <div>
         <!-- HEADER -->
         <div class="header">
-            <div class="icon">🚌</div>
-            <h1>Cajicá <span>en Ruta</span></h1>
+            <div class="icon">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="RouteX Logo">
+        </div>
+            <h1>Route<span>X</span></h1>
             <p>Tu transporte, en tiempo real</p>
         </div>
 
@@ -31,8 +457,7 @@
         <div class="card">
             <h3>Iniciar sesión</h3>
 
-            <form method="POST" action="/">
-
+            <form method="POST" action="{{ url_for('login') }}">
                 <!-- CORREO -->
                 <div class="input-group">
                     <i class="fa fa-envelope"></i>
@@ -49,13 +474,13 @@
                 <!-- OPCIONES -->
                 <div class="options">
                     <label>
-                        <input type="checkbox"> Recordarme
+                        <input type="checkbox" name="remember"> Recordarme
                     </label>
                     <a href="#">¿Olvidaste tu contraseña?</a>
                 </div>
 
                 <!-- BOTÓN -->
-                <button type="submit">Iniciar sesión</button>
+                <button type="submit" class="btn-primary">Iniciar sesión</button>
             </form>
 
             <!-- ERROR FLASK -->
@@ -68,32 +493,63 @@
                 <a href="{{ url_for('register') }}">Regístrate</a>
             </p>
         </div>
-
     </div>
 </div>
 
 <!-- JS -->
 <script>
-// mostrar/ocultar contraseña
-function togglePassword() {
-    const input = document.getElementById("password");
-    input.type = input.type === "password" ? "text" : "password";
-}
+    // Mostrar/ocultar contraseña
+    function togglePassword() {
+        const input = document.getElementById("password");
+        const icon = document.querySelector(".toggle-password");
+        
+        if (input.type === "password") {
+            input.type = "text";
+            icon.classList.remove("fa-eye");
+            icon.classList.add("fa-eye-slash");
+        } else {
+            input.type = "password";
+            icon.classList.remove("fa-eye-slash");
+            icon.classList.add("fa-eye");
+        }
+    }
 
-// loader
-window.addEventListener("load", function() {
-    const loader = document.getElementById("loader");
-
-    setTimeout(() => {
-        loader.style.opacity = "0";
-        loader.style.transition = "opacity 0.5s ease";
-
+    // Loader
+    window.addEventListener("load", function() {
+        const loader = document.getElementById("loader");
         setTimeout(() => {
-            loader.style.display = "none";
-        }, 500);
+            loader.style.opacity = "0";
+            setTimeout(() => {
+                loader.style.display = "none";
+            }, 500);
+        }, 800);
+    });
 
-    }, 1000);
-});
+    // Menú móvil
+    const mobileMenuBtn = document.getElementById("mobileMenuBtn");
+    const mobileMenu = document.getElementById("mobileMenu");
+
+    if (mobileMenuBtn && mobileMenu) {
+        mobileMenuBtn.addEventListener("click", function() {
+            mobileMenu.classList.toggle("active");
+        });
+
+        // Cerrar menú al hacer clic en un enlace
+        mobileMenu.querySelectorAll("a").forEach(link => {
+            link.addEventListener("click", () => {
+                mobileMenu.classList.remove("active");
+            });
+        });
+    }
+
+    // Cerrar menú al hacer clic fuera
+    document.addEventListener("click", function(e) {
+        if (mobileMenu && mobileMenu.classList.contains("active")) {
+            if (!mobileMenu.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
+                mobileMenu.classList.remove("active");
+            }
+        }
+    });
 </script>
 
 </body>

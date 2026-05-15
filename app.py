@@ -1,8 +1,10 @@
-from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from sqlalchemy import text
 from services.ruta_service import RutaService
 from auth import admin_required
+from werkzeug.security import generate_password_hash
 import os
 
 app = Flask(__name__)
@@ -28,6 +30,8 @@ class User(db.Model):
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(100), nullable=False)
     tipo = db.Column(db.String(20), nullable=False)  # usuario / conductor / administrador
+    ruta_asignada_id = db.Column(db.Integer, db.ForeignKey('ruta.id'), nullable=True)
+    ruta_asignada = db.relationship('Ruta', backref='conductores', foreign_keys=[ruta_asignada_id])
 
 # ===== MODELO RUTA =====
 class Ruta(db.Model):
@@ -46,11 +50,27 @@ class Ruta(db.Model):
     distancia_ida = db.Column(db.Float, nullable=True)  # en km
     distancia_vuelta = db.Column(db.Float, nullable=True)  # en km
     
+    # Nuevo campo: conductor asignado
+    conductor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    conductor = db.relationship('User', foreign_keys=[conductor_id])
+    
     def __repr__(self):
         return f'<Ruta {self.nombre}>'
 
+# ===== HOME =====
+@app.route('/')
+def home():
+    if session.get('user_id') and session.get('tipo'):
+        if session['tipo'] == 'usuario':
+            return redirect(url_for('mapa_usuario'))
+        elif session['tipo'] == 'conductor':
+            return redirect(url_for('mapa_conductor'))
+        elif session['tipo'] == 'administrador':
+            return redirect(url_for('admin_panel'))
+    return render_template('home.html')
+
 # ===== LOGIN =====
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
 
@@ -61,24 +81,21 @@ def login():
         user = User.query.filter_by(email=correo, password=password).first()
 
         if user:
-
-            # SESIÓN
             session.clear()
             session['user_id'] = user.id
             session['tipo'] = user.tipo
 
-            # redirección por rol
             if user.tipo == "usuario":
                 return redirect(url_for('mapa_usuario'))
             elif user.tipo == "conductor":
                 return redirect(url_for('mapa_conductor'))
             elif user.tipo == "administrador":
                 return redirect(url_for('admin_panel'))
-
         else:
             error = 'Correo o contraseña incorrectos'
 
     return render_template('login.html', error=error)
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
 
@@ -123,23 +140,60 @@ def mapa_conductor():
     if session.get('tipo') != "conductor":
         return redirect(url_for('login'))
 
-    return render_template('conductor.html')
+    conductor = None
+    if session.get('user_id'):
+        conductor = User.query.get(session['user_id'])
+    return render_template('conductor.html', conductor=conductor)
 
 # ===== CREAR TABLAS =====
 with app.app_context():
     db.create_all()
 
+    # Ensure DB has required columns when upgrading without migrations (SQLite-friendly)
+    try:
+        conn = db.engine.connect()
+
+        def _has_column(table, column):
+            res = conn.execute(text(f"PRAGMA table_info('{table}')")).fetchall()
+            return any(r[1] == column for r in res)
+
+        # Add user.ruta_asignada_id if missing
+        if not _has_column('user', 'ruta_asignada_id'):
+            conn.execute(text('ALTER TABLE user ADD COLUMN ruta_asignada_id INTEGER'))
+
+        # Add ruta additional columns if missing
+        ruta_cols = {
+            'coordenadas_ida': "TEXT",
+            'coordenadas_vuelta': "TEXT",
+            'duracion_ida': "INTEGER",
+            'duracion_vuelta': "INTEGER",
+            'distancia_ida': "REAL",
+            'distancia_vuelta': "REAL",
+            'conductor_id': "INTEGER",
+        }
+        for col, coltype in ruta_cols.items():
+            if not _has_column('ruta', col):
+                conn.execute(text(f"ALTER TABLE ruta ADD COLUMN {col} {coltype}"))
+
+    except Exception:
+        # If any of these fail (e.g., DB locked), continue — migrations should be used in production
+        pass
+
     # Verificar si ya existe un admin
-    admin = User.query.filter_by(email="admin@cajica.com").first()
-    if not admin:
-        admin_user = User(
-            nombre="Administrador",
-            email="admin@cajica.com",
-            password="admin123",  
-            tipo="administrador"
-        )
-        db.session.add(admin_user)
-        db.session.commit()
+    try:
+        admin = User.query.filter_by(email="admin@cajica.com").first()
+        if not admin:
+            admin_user = User(
+                nombre="Administrador",
+                email="admin@cajica.com",
+                password="admin123",  
+                tipo="administrador"
+            )
+            db.session.add(admin_user)
+            db.session.commit()
+    except Exception:
+        # DB schema may be out of date (missing columns); skip admin auto-creation
+        pass
 
 
 # ======= ADMINISTRADOR DEL SISTEMA =====
@@ -223,6 +277,58 @@ def editar_usuario(id):
         db.session.commit()
         return redirect(url_for('admin_panel'))
     return render_template('editar_usuario.html', usuario=usuario)
+
+# ==================== GESTIÓN DE CONDUCTORES ====================
+
+@app.route('/admin/conductores')
+@admin_required
+def admin_conductores():
+    conductores = User.query.filter_by(tipo='conductor').all()
+    rutas = Ruta.query.all()
+    return render_template('admin_conductores.html', conductores=conductores, rutas=rutas)
+
+@app.route('/admin/conductor/asignar_ruta', methods=['POST'])
+@admin_required
+def admin_asignar_ruta_conductor():
+    data = request.get_json()
+    conductor = User.query.get(data['conductor_id'])
+    ruta = Ruta.query.get(data['ruta_id'])
+    
+    if conductor and ruta:
+        # Actualizar conductor y ruta
+        conductor.ruta_asignada_id = ruta.id
+        ruta.conductor_id = conductor.id
+        db.session.commit()
+        return jsonify({'status': 'ok', 'ruta_id': ruta.id, 'ruta_nombre': ruta.nombre})
+    return jsonify({'status': 'error'}), 404
+
+@app.route('/admin/crear_usuario', methods=['POST'])
+@admin_required
+def admin_crear_usuario():
+    data = request.get_json()
+    hashed_password = generate_password_hash(data['password'])
+    user = User(
+        username=data['username'],
+        email=data['email'],
+        password=hashed_password,
+        tipo=data.get('tipo', 'usuario')
+    )
+    db.session.add(user)
+    db.session.commit()
+    return jsonify({'status': 'ok'})
+
+@app.route('/admin/eliminar_usuario/<int:user_id>', methods=['DELETE'])
+@admin_required
+def admin_eliminar_usuario(user_id):
+    user = User.query.get(user_id)
+    if user:
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({'status': 'ok'})
+    return jsonify({'status': 'error'}), 404
+
+
+
 #====== API =======
 @app.route('/api/rutas')
 def api_rutas():
@@ -244,6 +350,36 @@ def api_rutas():
         })
     return jsonify(rutas_data)
 
+@app.route('/api/conductor/ruta/<int:ruta_id>')
+def api_conductor_ruta(ruta_id):
+    """Obtener ruta asignada al conductor - Solo si es su ruta"""
+    if session.get('tipo') != 'conductor':
+        return jsonify({'error': 'No autorizado'}), 403
+
+    if not session.get('user_id'):
+        return jsonify({'error': 'No autorizado'}), 403
+
+    conductor = User.query.get(session['user_id'])
+    if not conductor or conductor.ruta_asignada_id != ruta_id:
+        return jsonify({'error': 'No tienes acceso a esta ruta'}), 403
+
+    ruta = Ruta.query.get(ruta_id)
+    if ruta:
+        return jsonify({
+            'ruta': {
+                'id': ruta.id,
+                'nombre': ruta.nombre,
+                'origen': ruta.origen,
+                'destino': ruta.destino,
+                'coordenadas_ida': ruta.coordenadas_ida,
+                'coordenadas_vuelta': ruta.coordenadas_vuelta,
+                'duracion_ida': ruta.duracion_ida,
+                'duracion_vuelta': ruta.duracion_vuelta,
+                'distancia_ida': ruta.distancia_ida,
+                'distancia_vuelta': ruta.distancia_vuelta
+            }
+        })
+    return jsonify({'error': 'Ruta no encontrada'}), 404
 # ===== CRUD RUTAS =====
 @app.route('/admin/ruta/nueva', methods=['GET','POST'])
 @admin_required
@@ -260,12 +396,25 @@ def nueva_ruta():
             duracion_ida=request.form.get('duracion_ida', type=int),
             duracion_vuelta=request.form.get('duracion_vuelta', type=int),
             distancia_ida=request.form.get('distancia_ida', type=float),
-            distancia_vuelta=request.form.get('distancia_vuelta', type=float)
+            distancia_vuelta=request.form.get('distancia_vuelta', type=float),
+            conductor_id=request.form.get('conductor_id') or None  # Asignar conductor
         )
         db.session.add(ruta)
         db.session.commit()
+
+        # Si se asignó un conductor, actualizar su ruta_asignada_id
+        if ruta.conductor_id:
+            conductor = User.query.get(ruta.conductor_id)
+            if conductor:
+                conductor.ruta_asignada_id = ruta.id
+                db.session.commit()
+
         flash('Ruta creada exitosamente', 'success')
         return redirect(url_for('admin_panel'))
+    
+    # GET: Obtener lista de conductores
+    conductores = User.query.filter_by(tipo='conductor').all()
+
     return render_template('nueva_ruta.html')
 
 @app.route('/admin/ruta/eliminar/<int:id>')

@@ -1,7 +1,8 @@
 body {
     margin: 0;
     font-family: 'Segoe UI', sans-serif;
-    background: #f1f5f9; /* fondo sólido claro */
+    background: linear-gradient(135deg, #020617 0%, #0f172a 45%, #111827 100%);
+    color: #e2e8f0;
 }
 
 /* Layout general */
@@ -13,12 +14,13 @@ body {
 /* Sidebar */
 .sidebar {
     width: 220px;
-    background: #22c55e;
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
     color: white;
     padding: 20px;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     position: relative;
     z-index: 100;
+    border-right: 1px solid rgba(255,255,255,0.08);
 }
 
 .sidebar-header {
@@ -66,7 +68,7 @@ body {
 }
 
 .sidebar nav ul li a:hover {
-    background: #16a34a;
+    background: rgba(14,165,233,0.18);
 }
 
 /* Botón logout */
@@ -82,10 +84,11 @@ body {
 .admin-container {
     flex: 1;
     padding: 30px;
-    background: white;
+    background: rgba(15, 23, 42, 0.92);
     border-radius: 12px;
     margin: 20px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.08);
 }
 
 /* Tablas */
@@ -98,16 +101,16 @@ table {
 table th, table td {
     padding: 14px;
     text-align: center;
-    border-bottom: 1px solid rgba(0,0,0,0.1);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
 table th {
-    background: #22c55e;
+    background: #0ea5e9;
     color: white;
 }
 
 table tr:hover {
-    background: rgba(34,197,94,0.08);
+    background: rgba(14, 165, 233, 0.12);
 }
 
 /* Botones */
@@ -119,33 +122,31 @@ table tr:hover {
     font-weight: bold;
     transition: 0.3s;
     margin: 4px;
+    color: white;
 }
 
 .btn-edit {
-    background: #22c55e;
-    color: white;
+    background: #0ea5e9;
 }
 
 .btn-edit:hover {
-    background: #16a34a;
+    background: #2563eb;
 }
 
 .btn-delete {
-    background: #dc2626;
-    color: white;
+    background: #ef4444;
 }
 
 .btn-delete:hover {
-    background: #b91c1c;
+    background: #dc2626;
 }
 
 .btn-new {
     background: #0ea5e9;
-    color: white;
 }
 
 .btn-new:hover {
-    background: #0284c7;
+    background: #2563eb;
 }
 
 /* Tarjetas de resumen */
@@ -159,11 +160,11 @@ table tr:hover {
 .card {
     flex: 1;
     min-width: 200px;
-    background: #f9fafb;
+    background: #111827;
     border-radius: 12px;
     padding: 20px;
     text-align: center;
-    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
     transition: 0.3s;
 }
 
@@ -173,18 +174,18 @@ table tr:hover {
 
 .card i {
     font-size: 32px;
-    color: #22c55e;
+    color: #0ea5e9;
     margin-bottom: 10px;
 }
 
 .card h2 {
     margin: 0;
     font-size: 28px;
-    color: #0f172a;
+    color: #e2e8f0;
 }
 
 .card p {
-    color: #475569;
+    color: #cbd5e1;
     margin-top: 6px;
 }
 
@@ -196,10 +197,10 @@ table tr:hover {
 }
 /* Sección de formulario */
 .form-section {
-    background: #f9fafb;
+    background: #111827;
     padding: 20px;
     border-radius: 12px;
-    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
     margin-bottom: 30px;
 }
 
@@ -235,10 +236,10 @@ table tr:hover {
 
 /* Sección de tabla */
 .table-section {
-    background: white;
+    background: #111827;
     padding: 20px;
     border-radius: 12px;
-    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
 }
 
 .table-section table {
@@ -254,12 +255,12 @@ table tr:hover {
 }
 
 .table-section th {
-    background: #22c55e;
+    background: #0ea5e9;
     color: white;
 }
 /* HOVER */
 .user-table tbody tr:hover {
-    background: #f9fafb;
+    background: rgba(14,165,233,0.12);
 }
 
 /* BADGES */
@@ -277,13 +278,13 @@ table tr:hover {
 }
 
 .badge-driver {
-    background: #dcfce7;
-    color: #16a34a;
+    background: rgba(14,165,233,0.12);
+    color: #0ea5e9;
 }
 
 .badge-user {
-    background: #e0f2fe;
-    color: #0284c7;
+    background: rgba(14,165,233,0.12);
+    color: #0ea5e9;
 }
 
 /* ACCIONES */
@@ -300,7 +301,7 @@ table tr:hover {
     top: 15px;
     left: 15px;
     z-index: 200;
-    background: #22c55e;
+    background: #0ea5e9;
     color: white;
     border: none;
     width: 45px;
@@ -313,7 +314,7 @@ table tr:hover {
 }
 
 .sidebar-toggle:hover {
-    background: #16a34a;
+    background: #2563eb;
     transform: scale(1.05);
 }
 

@@ -31,6 +31,20 @@
                     <small>Formato: HH:MM (24 horas)</small>
                 </div>
 
+                <!-- En el panel del formulario, agrega este campo -->
+                <div class="form-group">
+                    <label for="conductor_id">👨‍✈️ Asignar Conductor:</label>
+                    <select id="conductor_id" name="conductor_id" class="form-control">
+                        <option value="">-- Sin conductor asignado --</option>
+                        {% for conductor in conductores %}
+                        <option value="{{ conductor.id }}">
+                            🚌 {{ conductor.username }} - {{ conductor.email }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small>El conductor podrá ver esta ruta en su panel</small>
+                </div>
+
                 <div class="form-group">
                     <label>📍 Selecciona los puntos en el mapa:</label>
                     <div class="points-info">
@@ -96,13 +110,13 @@
 <style>
 .editor-container {
     padding: 20px;
-    background: #f5f5f5;
+    background: #0f172a;
     min-height: calc(100vh - 100px);
 }
 
 .editor-container h1 {
     margin-bottom: 20px;
-    color: #333;
+    color: #e2e8f0;
     font-size: 1.8rem;
 }
 
@@ -113,10 +127,11 @@
 }
 
 .form-panel {
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    background: rgba(15, 23, 42, 0.95);
+    padding: 22px;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.08);
 }
 
 .form-group {
@@ -127,19 +142,21 @@
     display: block;
     margin-bottom: 8px;
     font-weight: 600;
-    color: #555;
+    color: #e2e8f0;
 }
 
 .form-group input, .form-group select {
     width: 100%;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    padding: 12px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
     font-size: 14px;
+    background: rgba(255,255,255,0.06);
+    color: #e2e8f0;
 }
 
 .points-info {
-    background: #f8f9fa;
+    background: rgba(226, 232, 240, 0.06);
     padding: 10px;
     border-radius: 4px;
     margin-bottom: 10px;
@@ -148,17 +165,18 @@
 .point {
     padding: 10px;
     margin: 5px 0;
-    border-radius: 4px;
-    background: white;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.08);
     font-size: 14px;
+    color: #e2e8f0;
 }
 
 .point.origen {
-    border-left: 4px solid green;
+    border-left: 4px solid #22c55e;
 }
 
 .point.destino {
-    border-left: 4px solid red;
+    border-left: 4px solid #ef4444;
 }
 
 .point i {
@@ -167,10 +185,10 @@
 
 .btn-clear {
     padding: 8px 15px;
-    background: #6c757d;
+    background: #0ea5e9;
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 13px;
     display: inline-flex;
@@ -179,14 +197,15 @@
 }
 
 .btn-clear:hover {
-    background: #5a6268;
+    background: #0284c7;
 }
 
 .info-box {
-    background: #e3f2fd;
+    background: rgba(255,255,255,0.08);
     padding: 15px;
-    border-radius: 4px;
+    border-radius: 8px;
     font-size: 13px;
+    color: #e2e8f0;
 }
 
 .info-box p {
@@ -242,17 +261,28 @@
 }
 
 .map-panel {
-    background: white;
-    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.95);
+    border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.08);
 }
 
 .map-instructions {
-    padding: 15px;
-    background: #f8f9fa;
+    padding: 18px;
+    background: rgba(255,255,255,0.05);
     font-size: 13px;
-    border-top: 1px solid #dee2e6;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    color: #e2e8f0;
+}
+
+.map-instructions ul {
+    margin: 8px 0 0 20px;
+}
+
+.map-instructions li {
+    margin: 5px 0;
+    color: #cbd5e1;
 }
 
 .map-instructions ul {
@@ -456,7 +486,7 @@ async function actualizarRuta() {
             opacity: 0.8
         }).addTo(map);
         
-        // Dibujar ruta de vuelta (naranja punteado)
+        // Dibujar ruta de vuelta (punteado)
         rutaVueltaLinea = L.polyline(rutaVuelta.coordenadas, {
             color: '#7c3aed',
             weight: 4,
@@ -484,7 +514,7 @@ function mostrarInformacionRuta(ida, vuelta) {
         <p>⏱ Duración: ${ida.duracion} minutos</p>
         <p>📏 Distancia: ${ida.distancia} km</p>
         <hr>
-        <p><strong>🔄 Ruta de Vuelta (Naranja):</strong></p>
+        <p><strong>🔄 Ruta de Vuelta (Morada):</strong></p>
         <p>⏱ Duración: ${vuelta.duracion} minutos</p>
         <p>📏 Distancia: ${vuelta.distancia} km</p>
         <hr>
