@@ -434,12 +434,22 @@
     <p>Cargando RouteX...</p>
 </div>
 
+<header class="topbar">
+    <div class="logo">
+        <img src="{{ url_for('static', filename='logo.png') }}" class="logo-img" alt="logo">
+        RouteX
+    </div>
 
-<!-- MENÚ MÓVIL -->
-<div class="mobile-menu" id="mobileMenu">
-    <a href="{{ url_for('home') }}">Inicio</a>
-    <a href="{{ url_for('register') }}">Registrarse</a>
-</div>
+    <nav>
+        <a href="{{ url_for('home') }}">Inicio</a>
+        <a href="{{ url_for('register') }}">Registrarse</a>
+    </nav>
+
+    <button class="mobile-menu-btn" id="mobileMenuBtn">
+        <i class="fa fa-bars"></i>
+    </button>
+</header>
+
 
 <!-- CONTENEDOR PRINCIPAL -->
 <div class="main-container">

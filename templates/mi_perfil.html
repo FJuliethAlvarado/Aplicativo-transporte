@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Perfil - RouteX</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #020617 0%, #0f172a 45%, #111827 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #60a5fa, #0ea5e9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #0ea5e9;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid #0ea5e9;
+            color: #0ea5e9;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(14, 165, 233, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* Perfil Usuario */
+        .profile-card {
+            background: linear-gradient(135deg, rgba(14,165,233,0.1) 0%, rgba(2,6,23,0.5) 100%);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 40px;
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .profile-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0ea5e9, #2563eb);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 50px;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .profile-info h2 {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+        }
+
+        .profile-info p {
+            color: #cbd5e1;
+            margin-bottom: 4px;
+        }
+
+        .profile-info .user-type {
+            display: inline-block;
+            background: #0ea5e9;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+        /* Dashboard Cards */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: rgba(15, 23, 42, 0.96);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 24px;
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: #0ea5e9;
+            box-shadow: 0 10px 30px rgba(14, 165, 233, 0.2);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        .card-icon {
+            font-size: 24px;
+            color: #0ea5e9;
+        }
+
+        .card-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #e2e8f0;
+            margin: 12px 0;
+        }
+
+        .card-subtitle {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .card-badge {
+            display: inline-block;
+            background: rgba(14, 165, 233, 0.2);
+            color: #0ea5e9;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        /* Stats Row */
+        .stats-row {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            flex: 1;
+            background: rgba(14, 165, 233, 0.08);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-item .label {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin-bottom: 4px;
+        }
+
+        .stat-item .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #0ea5e9;
+        }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .chart-container {
+            background: rgba(15, 23, 42, 0.96);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 24px;
+            position: relative;
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Rutas Frecuentes */
+        .rutas-section {
+            background: rgba(15, 23, 42, 0.96);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 40px;
+        }
+
+        .rutas-section h2 {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .rutas-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .ruta-item {
+            background: rgba(14, 165, 233, 0.08);
+            border-left: 4px solid #0ea5e9;
+            padding: 16px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .ruta-name {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .ruta-count {
+            background: #0ea5e9;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        .empty-message {
+            text-align: center;
+            color: #94a3b8;
+            padding: 40px 20px;
+        }
+
+        .empty-message i {
+            font-size: 48px;
+            color: #475569;
+            margin-bottom: 16px;
+            display: block;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .profile-card {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+
+            .header-buttons {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* Animaciones */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card, .chart-container, .rutas-section, .profile-card {
+            animation: fadeIn 0.6s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1><i class="fas fa-user-circle"></i> Mi Perfil</h1>
+            <div class="header-buttons">
+                <a href="{% if user.tipo == 'usuario' %}{{ url_for('mapa_usuario') }}{% elif user.tipo == 'conductor' %}{{ url_for('mapa_conductor') }}{% else %}{{ url_for('admin_panel') }}{% endif %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+                <a href="{{ url_for('logout') }}" class="btn btn-secondary">
+                    <i class="fas fa-sign-out-alt"></i> Cerrar sesión
+                </a>
+            </div>
+        </div>
+
+        <!-- Perfil Card -->
+        <div class="profile-card">
+            <div class="profile-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="profile-info">
+                <h2>{{ user.nombre }}</h2>
+                <p><i class="fas fa-envelope"></i> {{ user.email }}</p>
+                {% if user.tipo == 'conductor' and stats.ruta_asignada %}
+                    <p><i class="fas fa-route"></i> Ruta: <strong>{{ stats.ruta_asignada }}</strong></p>
+                {% endif %}
+                <span class="user-type">
+                    {% if user.tipo == 'usuario' %}
+                        <i class="fas fa-user-tie"></i> Pasajero
+                    {% elif user.tipo == 'conductor' %}
+                        <i class="fas fa-steering-wheel"></i> Conductor
+                    {% else %}
+                        <i class="fas fa-crown"></i> Administrador
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        <!-- Dashboard Cards -->
+        <div class="dashboard-grid">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-map-marked-alt card-icon"></i>
+                        Viajes Totales
+                    </div>
+                </div>
+                <div class="card-value">{{ stats.total_viajes }}</div>
+                <div class="stats-row">
+                    <div class="stat-item">
+                        <div class="label">Completados</div>
+                        <div class="value">{{ stats.viajes_completados }}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="label">Cancelados</div>
+                        <div class="value">{{ stats.viajes_cancelados }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-road card-icon"></i>
+                        Distancia Total
+                    </div>
+                </div>
+                <div class="card-value">{{ stats.distancia_total }} <span style="font-size: 0.6em;">km</span></div>
+                <div class="card-subtitle">
+                    Promedio por viaje: <strong>{{ (stats.distancia_total / stats.total_viajes)|round(2) if stats.total_viajes > 0 else 0 }} km</strong>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-clock card-icon"></i>
+                        Tiempo en Transporte
+                    </div>
+                </div>
+                <div class="card-value">{{ stats.tiempo_total_minutos }} <span style="font-size: 0.6em;">min</span></div>
+                <div class="stats-row">
+                    <div class="stat-item">
+                        <div class="label">Promedio</div>
+                        <div class="value">{{ stats.tiempo_promedio }} min</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-star card-icon"></i>
+                        Calificación
+                    </div>
+                </div>
+                <div class="card-value">{{ stats.calificacion_promedio }} <span style="font-size: 0.6em;">/ 5</span></div>
+                <div class="card-subtitle">
+                    {% if stats.calificacion_promedio >= 4.5 %}
+                        <span class="card-badge">⭐ Excelente</span>
+                    {% elif stats.calificacion_promedio >= 4 %}
+                        <span class="card-badge">⭐ Muy Bueno</span>
+                    {% elif stats.calificacion_promedio >= 3 %}
+                        <span class="card-badge">⭐ Bueno</span>
+                    {% else %}
+                        <span class="card-badge">⭐ Aceptable</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if user.tipo == 'usuario' %}
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-wallet card-icon"></i>
+                        Gasto Total
+                    </div>
+                </div>
+                <div class="card-value">${{ stats.costo_total }}</div>
+                <div class="card-subtitle">
+                    Promedio por viaje: <strong>${{ (stats.costo_total / stats.total_viajes)|round(2) if stats.total_viajes > 0 else 0 }}</strong>
+                </div>
+            </div>
+            {% elif user.tipo == 'conductor' %}
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fas fa-money-bill-wave card-icon"></i>
+                        Ingreso Total
+                    </div>
+                </div>
+                <div class="card-value">${{ stats.ingreso_total }}</div>
+                <div class="card-subtitle">
+                    Promedio por viaje: <strong>${{ (stats.ingreso_total / stats.total_viajes)|round(2) if stats.total_viajes > 0 else 0 }}</strong>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Charts Section -->
+        {% if stats.total_viajes > 0 %}
+        <div class="charts-section">
+            <!-- Estado de Viajes -->
+            <div class="chart-container">
+                <div class="chart-title">
+                    <i class="fas fa-chart-pie" style="color: #0ea5e9;"></i>
+                    Estado de Viajes
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="stateChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Distancia por Viaje (promedio) -->
+            <div class="chart-container">
+                <div class="chart-title">
+                    <i class="fas fa-chart-bar" style="color: #0ea5e9;"></i>
+                    Estadísticas de Distancia
+                </div>
+                <div style="padding: 20px; text-align: center;">
+                    <div style="margin: 15px 0;">
+                        <div style="color: #94a3b8; margin-bottom: 8px;">Total Recorrido</div>
+                        <div style="font-size: 2rem; font-weight: bold; color: #0ea5e9;">{{ stats.distancia_total }} km</div>
+                    </div>
+                    <div style="margin: 15px 0;">
+                        <div style="color: #94a3b8; margin-bottom: 8px;">Promedio por Viaje</div>
+                        <div style="font-size: 1.5rem; font-weight: bold; color: #60a5fa;">{{ (stats.distancia_total / stats.total_viajes)|round(2) if stats.total_viajes > 0 else 0 }} km</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tiempo por Viaje -->
+            <div class="chart-container">
+                <div class="chart-title">
+                    <i class="fas fa-hourglass-half" style="color: #0ea5e9;"></i>
+                    Tiempo de Viaje
+                </div>
+                <div style="padding: 20px; text-align: center;">
+                    <div style="margin: 15px 0;">
+                        <div style="color: #94a3b8; margin-bottom: 8px;">Total de Horas</div>
+                        <div style="font-size: 2rem; font-weight: bold; color: #0ea5e9;">{{ (stats.tiempo_total_minutos / 60)|round(1) }} h</div>
+                    </div>
+                    <div style="margin: 15px 0;">
+                        <div style="color: #94a3b8; margin-bottom: 8px;">Promedio por Viaje</div>
+                        <div style="font-size: 1.5rem; font-weight: bold; color: #60a5fa;">{{ stats.tiempo_promedio }} min</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rutas Frecuentes -->
+        {% if stats.rutas_frecuentes %}
+        <div class="rutas-section">
+            <h2>
+                <i class="fas fa-star" style="color: #0ea5e9;"></i>
+                Tus Rutas Favoritas
+            </h2>
+            <div class="rutas-list">
+                {% for ruta_nombre, count in stats.rutas_frecuentes %}
+                <div class="ruta-item">
+                    <div>
+                        <div class="ruta-name"><i class="fas fa-map-pin" style="color: #0ea5e9; margin-right: 8px;"></i>{{ ruta_nombre }}</div>
+                    </div>
+                    <div class="ruta-count">{{ count }} viaje{{ 's' if count > 1 else '' }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="empty-message">
+            <i class="fas fa-inbox"></i>
+            <h2>Aún no tienes viajes registrados</h2>
+            <p>Los datos estadísticos aparecerán aquí una vez que realices viajes.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // Gráfico de Estado de Viajes
+        const stateCtx = document.getElementById('stateChart');
+        if (stateCtx) {
+            new Chart(stateCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Completados', 'Cancelados'],
+                    datasets: [{
+                        data: [{{ stats.viajes_completados }}, {{ stats.viajes_cancelados }}],
+                        backgroundColor: [
+                            '#0ea5e9',
+                            '#ef4444'
+                        ],
+                        borderColor: [
+                            '#0ea5e9',
+                            '#ef4444'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#e2e8f0',
+                                font: { size: 14, weight: 'bold' },
+                                padding: 15
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

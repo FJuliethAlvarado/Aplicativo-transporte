@@ -4,7 +4,8 @@ from flask_migrate import Migrate
 from sqlalchemy import text
 from services.ruta_service import RutaService
 from auth import admin_required
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
+from dotenv import load_dotenv
 import os
 
 app = Flask(__name__)
@@ -13,11 +14,19 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "supersecretkey")
 
 # ===== BASE DE DATOS (Render PostgreSQL) =====
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
-    "DATABASE_URL",
-    "sqlite:///local.db"
-)
 
+load_dotenv()  # Cargar variables de entorno desde .env
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL no está configurada")
+
+# Fix obligatorio para Render
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
@@ -28,7 +37,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
-    password = db.Column(db.String(100), nullable=False)
+    password = db.Column(db.String(255), nullable=False)
     tipo = db.Column(db.String(20), nullable=False)  # usuario / conductor / administrador
     ruta_asignada_id = db.Column(db.Integer, db.ForeignKey('ruta.id'), nullable=True)
     ruta_asignada = db.relationship('Ruta', backref='conductores', foreign_keys=[ruta_asignada_id])
@@ -57,6 +66,27 @@ class Ruta(db.Model):
     def __repr__(self):
         return f'<Ruta {self.nombre}>'
 
+# ===== MODELO VIAJE =====
+class Trip(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    usuario = db.relationship('User', backref='viajes', foreign_keys=[usuario_id])
+    ruta_id = db.Column(db.Integer, db.ForeignKey('ruta.id'), nullable=False)
+    ruta = db.relationship('Ruta', backref='viajes')
+    conductor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    conductor = db.relationship('User', backref='viajes_conducidos', foreign_keys=[conductor_id])
+    
+    fecha_hora = db.Column(db.DateTime, default=db.func.now())
+    duracion_minutos = db.Column(db.Integer, nullable=True)
+    distancia_km = db.Column(db.Float, nullable=True)
+    costo = db.Column(db.Float, nullable=True)
+    calificacion = db.Column(db.Integer, nullable=True)  # 1-5 stars
+    comentario = db.Column(db.String(500), nullable=True)
+    estado = db.Column(db.String(20), default='completado')  # completado, cancelado
+    
+    def __repr__(self):
+        return f'<Trip {self.id} - Usuario {self.usuario_id}>'
+
 # ===== HOME =====
 @app.route('/')
 def home():
@@ -78,9 +108,9 @@ def login():
         correo = request.form['correo']
         password = request.form['password']
 
-        user = User.query.filter_by(email=correo, password=password).first()
+        user = User.query.filter_by(email=correo).first()
 
-        if user:
+        if user and check_password_hash(user.password, password):
             session.clear()
             session['user_id'] = user.id
             session['tipo'] = user.tipo
@@ -113,7 +143,7 @@ def register():
         nuevo_usuario = User(
             nombre=nombre,
             email=correo,
-            password=password,
+            password=generate_password_hash(password),
             tipo=tipo
         )
 
@@ -145,6 +175,68 @@ def mapa_conductor():
         conductor = User.query.get(session['user_id'])
     return render_template('conductor.html', conductor=conductor)
 
+# ===== PERFIL DEL USUARIO =====
+@app.route('/perfil')
+def perfil():
+    if not session.get('user_id'):
+        return redirect(url_for('login'))
+    
+    user = User.query.get(session['user_id'])
+    if not user:
+        return redirect(url_for('login'))
+    
+    # Estadísticas según el tipo de usuario
+    stats = {}
+    
+    if user.tipo == 'usuario':
+        viajes = Trip.query.filter_by(usuario_id=user.id).all()
+        stats['total_viajes'] = len(viajes)
+        stats['viajes_completados'] = len([v for v in viajes if v.estado == 'completado'])
+        stats['viajes_cancelados'] = len([v for v in viajes if v.estado == 'cancelado'])
+        
+        total_distancia = sum([v.distancia_km or 0 for v in viajes])
+        stats['distancia_total'] = round(total_distancia, 2)
+        
+        total_tiempo = sum([v.duracion_minutos or 0 for v in viajes])
+        stats['tiempo_total_minutos'] = total_tiempo
+        stats['tiempo_promedio'] = round(total_tiempo / len(viajes), 1) if viajes else 0
+        
+        calificaciones = [v.calificacion for v in viajes if v.calificacion]
+        stats['calificacion_promedio'] = round(sum(calificaciones) / len(calificaciones), 1) if calificaciones else 0
+        
+        costo_total = sum([v.costo or 0 for v in viajes])
+        stats['costo_total'] = round(costo_total, 2)
+        
+        # Rutas más frecuentes
+        rutas_count = {}
+        for viaje in viajes:
+            if viaje.ruta:
+                rutas_count[viaje.ruta.nombre] = rutas_count.get(viaje.ruta.nombre, 0) + 1
+        stats['rutas_frecuentes'] = sorted(rutas_count.items(), key=lambda x: x[1], reverse=True)[:5]
+        
+    elif user.tipo == 'conductor':
+        viajes = Trip.query.filter_by(conductor_id=user.id).all()
+        stats['total_viajes'] = len(viajes)
+        stats['viajes_completados'] = len([v for v in viajes if v.estado == 'completado'])
+        stats['viajes_cancelados'] = len([v for v in viajes if v.estado == 'cancelado'])
+        
+        total_distancia = sum([v.distancia_km or 0 for v in viajes])
+        stats['distancia_total'] = round(total_distancia, 2)
+        
+        total_tiempo = sum([v.duracion_minutos or 0 for v in viajes])
+        stats['tiempo_total_minutos'] = total_tiempo
+        stats['tiempo_promedio'] = round(total_tiempo / len(viajes), 1) if viajes else 0
+        
+        calificaciones = [v.calificacion for v in viajes if v.calificacion]
+        stats['calificacion_promedio'] = round(sum(calificaciones) / len(calificaciones), 1) if calificaciones else 0
+        
+        ingreso_total = sum([v.costo or 0 for v in viajes])
+        stats['ingreso_total'] = round(ingreso_total, 2)
+        
+        stats['ruta_asignada'] = user.ruta_asignada.nombre if user.ruta_asignada else "No asignada"
+    
+    return render_template('mi_perfil.html', user=user, stats=stats)
+
 # ===== CREAR TABLAS =====
 with app.app_context():
     db.create_all()
@@ -174,6 +266,23 @@ with app.app_context():
         for col, coltype in ruta_cols.items():
             if not _has_column('ruta', col):
                 conn.execute(text(f"ALTER TABLE ruta ADD COLUMN {col} {coltype}"))
+        
+        # Add trip columns if missing
+        trip_cols = {
+            'usuario_id': "INTEGER",
+            'ruta_id': "INTEGER",
+            'conductor_id': "INTEGER",
+            'fecha_hora': "TIMESTAMP",
+            'duracion_minutos': "INTEGER",
+            'distancia_km': "REAL",
+            'costo': "REAL",
+            'calificacion': "INTEGER",
+            'comentario': "TEXT",
+            'estado': "TEXT",
+        }
+        for col, coltype in trip_cols.items():
+            if not _has_column('trip', col):
+                conn.execute(text(f"ALTER TABLE trip ADD COLUMN {col} {coltype}"))
 
     except Exception:
         # If any of these fail (e.g., DB locked), continue — migrations should be used in production
@@ -186,7 +295,7 @@ with app.app_context():
             admin_user = User(
                 nombre="Administrador",
                 email="admin@cajica.com",
-                password="admin123",  
+                password=generate_password_hash("admin123"),  
                 tipo="administrador"
             )
             db.session.add(admin_user)
@@ -248,7 +357,7 @@ def crear_usuario():
     nuevo_usuario = User(
         nombre=nombre,
         email=correo,
-        password=password,
+        password=generate_password_hash(password),
         tipo=tipo
     )
     db.session.add(nuevo_usuario)
@@ -475,11 +584,6 @@ def actualizar_ubicacion():
 def obtener_ubicacion():
 
     return jsonify(ubicacion_bus)
-
-
-# ===== CREAR TABLAS =====
-with app.app_context():
-    db.create_all()
 
 
 if __name__ == '__main__':

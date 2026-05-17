@@ -71,7 +71,7 @@
     <div class="active"><i class="fa fa-home"></i><span>Inicio</span></div>
     <div><i class="fa fa-route"></i><span>Rutas</span></div>
     <div><i class="fa fa-star"></i><span>Favoritos</span></div>
-    <div><i class="fa fa-user"></i><span>Perfil</span></div>
+    <div onclick="window.location.href='{{ url_for('perfil') }}'"><i class="fa fa-user"></i><span>Perfil</span></div>
     <div onclick="cerrarSesion()"><i class="fa fa-sign-out-alt"></i><span>Cerrar</span></div>
 </div>
 
@@ -437,7 +437,7 @@ bottomNavItems.forEach((item, index) => {
                 break;
             case 3: // Perfil
                 mostrarNotificacion('Abriendo perfil...', 'info');
-                window.location.href = "/perfil-usuario";
+                window.location.href = "/perfil";
                 break;
             case 4: // Cerrar sesión
                 cerrarSesion();
@@ -465,6 +465,15 @@ document.getElementById("search-input").addEventListener("input", (e) => {
         }
     });
 });
+
+// ==================== OBTENER UBICACIÓN DEL BUS ====================
+function obtenerUbicacionBus() {
+    // Esta función obtiene la ubicación actualizada del bus si está en movimiento
+    if (busActivo && intervaloBus) {
+        // El bus se está simulando, no hay necesidad de hacer fetch
+        return;
+    }
+}
 
 // ==================== INICIALIZAR ====================
 document.addEventListener("DOMContentLoaded", () => {
