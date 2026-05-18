@@ -176,8 +176,13 @@ def login():
             session['user_id'] = user.id
             session['tipo'] = user.tipo
             
-            # ✅ REGISTRAR ACTIVIDAD DE LOGIN
-            registrar_actividad(user.id, 'login', f'Inicio de sesión exitoso')
+           # ✅ Registrar actividad de login exitoso
+            registrar_actividad(
+                usuario_id=user.id,
+                accion='login',
+                descripcion=f'Inicio de sesión exitoso como {user.tipo}',
+                datos_adicionales='{"email": "' + correo + '", "tipo": "' + user.tipo + '"}'
+            )
 
             if user.tipo == "usuario":
                 return redirect(url_for('mapa_usuario'))
@@ -187,6 +192,15 @@ def login():
                 return redirect(url_for('admin_panel'))
         else:
             error = 'Correo o contraseña incorrectos'
+            
+            # ✅ Registrar intento de login fallido
+            if user:
+                registrar_actividad(
+                    usuario_id=user.id,
+                    accion='login',
+                    descripcion='Intento de login fallido',
+                    tipo_resultado='fallo'
+                )
 
     return render_template('login.html', error=error)
 
@@ -215,8 +229,13 @@ def register():
         db.session.add(nuevo_usuario)
         db.session.commit()
         
-        # ✅ REGISTRAR ACTIVIDAD DE REGISTRO
-        registrar_actividad(nuevo_usuario.id, 'registro', f'Usuario registrado: {nombre} ({correo})')
+        # ✅ Registrar actividad de registro
+        registrar_actividad(
+            usuario_id=nuevo_usuario.id,
+            accion='registro',
+            descripcion=f'Usuario registrado como {tipo}',
+            datos_adicionales='{"email": "' + correo + '", "tipo": "' + tipo + '"}'
+        )
 
         return redirect(url_for('login'))
 
@@ -229,9 +248,13 @@ def mapa_usuario():
     if session.get('tipo') != "usuario":
         return redirect(url_for('login'))
 
-    # REGISTRAR ACTIVIDAD - Acceso al mapa
+    # ✅ Registrar acceso al mapa
     if session.get('user_id'):
-        registrar_actividad(session['user_id'], 'ver_mapa', 'Accedió al mapa de usuario')
+        registrar_actividad(
+            usuario_id=session['user_id'],
+            accion='ver_mapa',
+            descripcion='Accedió al mapa de usuario'
+        )
 
     return render_template('usuario.html')
 
@@ -589,12 +612,13 @@ def api_rutas():
             'distancia_vuelta': ruta.distancia_vuelta
         })
     
-    # Registrar actividad usando session en lugar de current_user
+    # Registrar consulta de rutas
     if session.get('user_id'):
         registrar_actividad(
-            session['user_id'], 
-            'ver_rutas', 
-            f'Visualizó {len(rutas_data)} rutas disponibles'
+            usuario_id=session['user_id'],
+            accion='ver_rutas',
+            descripcion=f'Visualizó {len(rutas_data)} rutas disponibles',
+            datos_adicionales=f'{{"total_rutas": {len(rutas_data)}}}'
         )
     
     return jsonify(rutas_data)
@@ -670,6 +694,14 @@ def nueva_ruta():
                 conductor.ruta_asignada_id = ruta.id
                 db.session.commit()
 
+         # ✅ Registrar creación de ruta
+        registrar_actividad(
+            usuario_id=session['user_id'],
+            accion='crear_ruta',
+            descripcion=f'Creó nueva ruta: {ruta.nombre}',
+            datos_adicionales=f'{{"ruta_id": {ruta.id}, "nombre": "{ruta.nombre}"}}'
+        )
+
         flash('Ruta creada exitosamente', 'success')
         return redirect(url_for('admin_panel'))
     
@@ -682,8 +714,19 @@ def nueva_ruta():
 @admin_required
 def eliminar_ruta(id):
     ruta = Ruta.query.get_or_404(id)
+    nombre_ruta = ruta.nombre
+    
     db.session.delete(ruta)
     db.session.commit()
+    
+    # ✅ Registrar eliminación de ruta
+    registrar_actividad(
+        usuario_id=session['user_id'],
+        accion='eliminar_ruta',
+        descripcion=f'Eliminó la ruta: {nombre_ruta}',
+        datos_adicionales=f'{{"ruta_id": {id}, "nombre": "{nombre_ruta}"}}'
+    )
+    
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/ruta/editar/<int:id>', methods=['GET','POST'])
