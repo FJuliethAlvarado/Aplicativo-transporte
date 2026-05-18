@@ -8,7 +8,7 @@ from auth import admin_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
-import pytz  # pip install pytz
+import pytz  
 import os
 
 app = Flask(__name__)

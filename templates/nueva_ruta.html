@@ -31,18 +31,24 @@
                     <small>Formato: HH:MM (24 horas)</small>
                 </div>
 
-                <!-- En el panel del formulario, agrega este campo -->
                 <div class="form-group">
                     <label for="conductor_id">👨‍✈️ Asignar Conductor:</label>
                     <select id="conductor_id" name="conductor_id" class="form-control">
                         <option value="">-- Sin conductor asignado --</option>
                         {% for conductor in conductores %}
                         <option value="{{ conductor.id }}">
-                            🚌 {{ conductor.username }} - {{ conductor.email }}
+                            🚌 {{ conductor.nombre }} - {{ conductor.email }}
                         </option>
                         {% endfor %}
                     </select>
                     <small>El conductor podrá ver esta ruta en su panel</small>
+                </div>
+
+                <!-- Botón de guardado rápido (sin mapa) -->
+                <div class="form-group">
+                    <button type="button" class="btn-secondary" onclick="crearRutaSimple()" style="width: 100%; margin-bottom: 10px;">
+                        <i class="fa fa-bolt"></i> Crear ruta rápida (sin mapa)
+                    </button>
                 </div>
 
                 <div class="form-group">
@@ -293,14 +299,6 @@
     color: #cbd5e1;
 }
 
-.map-instructions ul {
-    margin: 8px 0 0 20px;
-}
-
-.map-instructions li {
-    margin: 5px 0;
-}
-
 @media (max-width: 768px) {
     .editor-grid {
         grid-template-columns: 1fr;
@@ -320,10 +318,9 @@ var rutaLinea = null;
 var rutaVueltaLinea = null;
 var origenCoords = null;
 var destinoCoords = null;
-var waypoints = []; // puntos intermedios editables
+var waypoints = [];
 var waypointMarkers = [];
 var editMode = false;
-
 
 // Inicializar mapa (centrado en Cajicá)
 function initMap() {
@@ -333,16 +330,12 @@ function initMap() {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
     
-    // Evento de clic en el mapa
     map.on('click', function(e) {
         if (!origenMarker) {
-            // Primer clic: origen
             setOrigen(e.latlng);
         } else if (!destinoMarker) {
-            // Segundo clic: destino
             setDestino(e.latlng);
         } else {
-            // Si ya hay ambos, preguntar si quiere reiniciar
             if (confirm('Ya hay una ruta seleccionada. ¿Deseas crear una nueva?')) {
                 limpiarPuntos();
                 setOrigen(e.latlng);
@@ -351,37 +344,47 @@ function initMap() {
     });
 }
 
-// Establecer punto de origen
-async function setOrigen(latlng) {
-    origenCoords = latlng;
+// Función para crear ruta simple (sin mapa)
+function crearRutaSimple() {
+    const nombre = document.getElementById('nombre').value;
+    const tipo = document.getElementById('tipo').value;
+    const horario = document.getElementById('horario').value;
     
-    if (origenMarker) {
-        map.removeLayer(origenMarker);
+    if (!nombre) {
+        alert('Por favor ingresa el nombre de la ruta');
+        return;
+    }
+    if (!tipo) {
+        alert('Por favor selecciona el tipo de ruta');
+        return;
+    }
+    if (!horario) {
+        alert('Por favor ingresa el horario');
+        return;
     }
     
-    // Crear marcador verde para origen
-    origenMarker = L.marker(latlng, {
-        draggable: true
-    }).addTo(map);
+    document.getElementById('origen').value = 'Centro de Cajicá';
+    document.getElementById('destino').value = 'Terminal de Transportes';
+    document.getElementById('coordenadas_ida').value = '';
+    document.getElementById('coordenadas_vuelta').value = '';
+    document.getElementById('duracion_ida').value = '';
+    document.getElementById('duracion_vuelta').value = '';
+    document.getElementById('distancia_ida').value = '';
+    document.getElementById('distancia_vuelta').value = '';
+    
+    document.getElementById('rutaForm').submit();
+}
 
+async function setOrigen(latlng) {
+    origenCoords = latlng;
+    if (origenMarker) map.removeLayer(origenMarker);
+    
+    origenMarker = L.marker(latlng, { draggable: true }).addTo(map);
     origenMarker.setIcon(L.divIcon({
         html: '<i class="fa fa-map-marker" style="font-size: 32px; color: green; text-shadow: 0 0 3px white;"></i>',
-        iconSize: [32, 32],
-        className: 'custom-marker'
+        iconSize: [32, 32]
     }));
-
-    // Asegurar que el dragging esté activado y cambiar cursor
-    if (origenMarker.dragging) origenMarker.dragging.enable();
-    const origenIcon = origenMarker.getElement && origenMarker.getElement();
-    if (origenIcon) origenIcon.style.cursor = 'move';
-
-    // Mostrar coordenadas mientras se arrastra (sin llamar a reverse geocode)
-    origenMarker.on('drag', function(e) {
-        const p = e.target.getLatLng();
-        document.getElementById('origen-label').innerHTML = `<i class="fa fa-map-marker" style="color: green;"></i> Moviendo: ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
-        document.getElementById('origen').value = `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
-    });
-
+    
     origenMarker.on('dragend', function(e) {
         origenCoords = e.target.getLatLng();
         actualizarRuta();
@@ -389,44 +392,19 @@ async function setOrigen(latlng) {
     });
     
     await actualizarNombreOrigen();
-    
-    // Si ya hay destino, actualizar ruta
-    if (destinoCoords) {
-        actualizarRuta();
-    }
+    if (destinoCoords) actualizarRuta();
 }
 
-// Establecer punto de destino
 async function setDestino(latlng) {
     destinoCoords = latlng;
+    if (destinoMarker) map.removeLayer(destinoMarker);
     
-    if (destinoMarker) {
-        map.removeLayer(destinoMarker);
-    }
-    
-    // Crear marcador rojo para destino
-    destinoMarker = L.marker(latlng, {
-        draggable: true
-    }).addTo(map);
-
+    destinoMarker = L.marker(latlng, { draggable: true }).addTo(map);
     destinoMarker.setIcon(L.divIcon({
         html: '<i class="fa fa-map-marker" style="font-size: 32px; color: red; text-shadow: 0 0 3px white;"></i>',
-        iconSize: [32, 32],
-        className: 'custom-marker'
+        iconSize: [32, 32]
     }));
-
-    // Asegurar que el dragging esté activado y cambiar cursor
-    if (destinoMarker.dragging) destinoMarker.dragging.enable();
-    const destinoIcon = destinoMarker.getElement && destinoMarker.getElement();
-    if (destinoIcon) destinoIcon.style.cursor = 'move';
-
-    // Mostrar coordenadas mientras se arrastra
-    destinoMarker.on('drag', function(e) {
-        const p = e.target.getLatLng();
-        document.getElementById('destino-label').innerHTML = `<i class="fa fa-map-marker" style="color: red;"></i> Moviendo: ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
-        document.getElementById('destino').value = `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
-    });
-
+    
     destinoMarker.on('dragend', function(e) {
         destinoCoords = e.target.getLatLng();
         actualizarRuta();
@@ -434,24 +412,15 @@ async function setDestino(latlng) {
     });
     
     await actualizarNombreDestino();
-    
-    // Si ya hay origen, actualizar ruta
-    if (origenCoords) {
-        actualizarRuta();
-    }
+    if (origenCoords) actualizarRuta();
 }
 
-// Obtener nombre de dirección desde coordenadas
 async function reverseGeocode(latlng) {
     try {
         const url = `https://nominatim.openstreetmap.org/reverse?lat=${latlng.lat}&lon=${latlng.lng}&format=json&zoom=18&addressdetails=1`;
-        const response = await fetch(url, {
-            headers: { 'User-Agent': 'TransportApp/1.0' }
-        });
+        const response = await fetch(url, { headers: { 'User-Agent': 'TransportApp/1.0' } });
         const data = await response.json();
-        
         if (data.display_name) {
-            // Extraer nombre de calle o lugar
             const parts = data.display_name.split(',');
             return parts[0] + ', ' + parts[1];
         }
@@ -477,19 +446,15 @@ async function actualizarNombreDestino() {
     }
 }
 
-// Calcular ruta con OSRM
 async function calcularRuta(start, end) {
     try {
         const url = `https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`;
         const response = await fetch(url);
         const data = await response.json();
-        
         if (data.code === 'Ok' && data.routes.length > 0) {
             const route = data.routes[0];
-            const coordenadas = route.geometry.coordinates.map(c => [c[1], c[0]]);
-            
             return {
-                coordenadas: coordenadas,
+                coordenadas: route.geometry.coordinates.map(c => [c[1], c[0]]),
                 duracion: Math.round(route.duration / 60),
                 distancia: (route.distance / 1000).toFixed(1)
             };
@@ -500,46 +465,23 @@ async function calcularRuta(start, end) {
     return null;
 }
 
-// Calcular y mostrar ruta de ida y vuelta
 async function actualizarRuta() {
     if (!origenCoords || !destinoCoords) return;
-    
-    // Limpiar rutas anteriores
     if (rutaLinea) map.removeLayer(rutaLinea);
     if (rutaVueltaLinea) map.removeLayer(rutaVueltaLinea);
     
-    // Calcular ruta de ida (origen -> destino)
     const rutaIda = await calcularRuta(origenCoords, destinoCoords);
-    
-    // Calcular ruta de vuelta (destino -> origen)
     const rutaVuelta = await calcularRuta(destinoCoords, origenCoords);
     
     if (rutaIda && rutaVuelta) {
-        // Dibujar ruta de ida (azul sólido)
-        rutaLinea = L.polyline(rutaIda.coordenadas, {
-            color: '#0ea5e9',
-            weight: 5,
-            opacity: 0.8
-        }).addTo(map);
+        rutaLinea = L.polyline(rutaIda.coordenadas, { color: '#0ea5e9', weight: 5, opacity: 0.8 }).addTo(map);
+        rutaVueltaLinea = L.polyline(rutaVuelta.coordenadas, { color: '#7c3aed', weight: 4, opacity: 0.6, dashArray: '10, 10' }).addTo(map);
         
-        // Dibujar ruta de vuelta (punteado)
-        rutaVueltaLinea = L.polyline(rutaVuelta.coordenadas, {
-            color: '#7c3aed',
-            weight: 4,
-            opacity: 0.6,
-            dashArray: '10, 10'
-        }).addTo(map);
-        
-        // Ajustar el mapa para mostrar toda la ruta
         const bounds = L.latLngBounds(rutaIda.coordenadas);
         map.fitBounds(bounds);
-        
-        // Mostrar información
         mostrarInformacionRuta(rutaIda, rutaVuelta);
-        
-        // Habilitar botón guardar
         document.getElementById('btnGuardar').disabled = false;
-        // Habilitar botones de edición y recálculo
+        
         const btnEditar = document.getElementById('btnEditarRuta');
         const btnRecalc = document.getElementById('btnRecalcRuta');
         if (btnEditar) btnEditar.disabled = false;
@@ -547,10 +489,8 @@ async function actualizarRuta() {
     }
 }
 
-// Mostrar información de la ruta
 function mostrarInformacionRuta(ida, vuelta) {
-    const infoDiv = document.getElementById('info-ruta');
-    infoDiv.innerHTML = `
+    document.getElementById('info-ruta').innerHTML = `
         <p><strong>🚌 Ruta de Ida (Azul):</strong></p>
         <p>⏱ Duración: ${ida.duracion} minutos</p>
         <p>📏 Distancia: ${ida.distancia} km</p>
@@ -563,7 +503,6 @@ function mostrarInformacionRuta(ida, vuelta) {
         <p><i class="fa fa-check-circle" style="color: green;"></i> <strong>Ruta válida</strong> - Puedes guardar</p>
     `;
     
-    // Guardar en campos ocultos
     document.getElementById('coordenadas_ida').value = JSON.stringify(ida.coordenadas);
     document.getElementById('coordenadas_vuelta').value = JSON.stringify(vuelta.coordenadas);
     document.getElementById('duracion_ida').value = ida.duracion;
@@ -572,7 +511,6 @@ function mostrarInformacionRuta(ida, vuelta) {
     document.getElementById('distancia_vuelta').value = vuelta.distancia;
 }
 
-// Limpiar todos los puntos
 function limpiarPuntos() {
     if (origenMarker) map.removeLayer(origenMarker);
     if (destinoMarker) map.removeLayer(destinoMarker);
@@ -590,19 +528,15 @@ function limpiarPuntos() {
     document.getElementById('destino-label').innerHTML = 'Esperando clic...';
     document.getElementById('info-ruta').innerHTML = '<p>⚠️ Selecciona origen y destino en el mapa</p>';
     document.getElementById('btnGuardar').disabled = true;
-    
-    // Limpiar campos ocultos
     document.getElementById('origen').value = '';
     document.getElementById('destino').value = '';
     document.getElementById('coordenadas_ida').value = '';
     document.getElementById('coordenadas_vuelta').value = '';
 }
 
-// Funcionalidad adicional: edición de waypoints y recálculo automático
-
 async function recalculateWithWaypoints() {
-    if (!origenCoords || !destinoCoords) return; // requiere ambos puntos
-    const pts = [origenCoords].concat(waypoints || []).concat([destinoCoords]);
+    if (!origenCoords || !destinoCoords) return;
+    const pts = [origenCoords].concat(waypoints).concat([destinoCoords]);
     const coordsStr = pts.map(p => `${p.lng},${p.lat}`).join(';');
     try {
         const url = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson`;
@@ -613,91 +547,40 @@ async function recalculateWithWaypoints() {
             const coordenadas = route.geometry.coordinates.map(c => [c[1], c[0]]);
             if (rutaLinea) map.removeLayer(rutaLinea);
             rutaLinea = L.polyline(coordenadas, { color: '#0ea5e9', weight: 5, opacity: 0.8 }).addTo(map);
-            // actualizar campos ocultos e info
             document.getElementById('coordenadas_ida').value = JSON.stringify(coordenadas);
             document.getElementById('distancia_ida').value = (route.distance/1000).toFixed(1);
             document.getElementById('duracion_ida').value = Math.round(route.duration/60);
-            mostrarInformacionRuta({coordenadas: coordenadas, duracion: Math.round(route.duration/60), distancia: (route.distance/1000).toFixed(1)}, {coordenadas: [], duracion: 0, distancia: 0});
-        } else {
-            console.warn('OSRM no devolvió ruta válida', data);
         }
     } catch (err) {
         console.error('Error en recálculo:', err);
     }
 }
 
-// Debounce simple para evitar recalculos rápidos seguidos
-function debounce(fn, wait) {
-    let t;
-    return function(...args) {
-        clearTimeout(t);
-        t = setTimeout(() => fn.apply(this, args), wait);
-    };
-}
-
-const debouncedRecalc = debounce(recalculateWithWaypoints, 300);
-
-function createWaypointMarkers(latlngs) {
-    // Limpiar marcadores previos
-    waypointMarkers.forEach(m => map.removeLayer(m));
-    waypointMarkers = [];
-    waypoints = [];
-
-    // Crear marcadores para puntos intermedios (excluye primero y último)
-    for (let i = 1; i < latlngs.length - 1; i++) {
-        const p = latlngs[i];
-        const mk = L.marker(p, { draggable: true }).addTo(map);
-        mk.setIcon(L.divIcon({ html: '<i class="fa fa-circle" style="color:#f59e0b;font-size:14px"></i>', className: 'wp-marker' }));
-
-        // mantener copia inicial en array
-        waypoints.push(p);
-
-        mk.on('drag', function(e) {
-            const pos = e.target.getLatLng();
-            // actualizar etiqueta opcional (no invasiva)
-        });
-
-        mk.on('dragend', function(e) {
-            const pos = e.target.getLatLng();
-            // actualizar el waypoint correspondiente
-            const idx = waypointMarkers.indexOf(mk);
-            if (idx !== -1) {
-                waypoints[idx] = pos;
-            }
-            debouncedRecalc();
-        });
-
-        mk.on('contextmenu', function(e) {
-            // eliminar waypoint con clic derecho
-            const idx = waypointMarkers.indexOf(mk);
-            if (idx !== -1) {
-                map.removeLayer(mk);
-                waypointMarkers.splice(idx, 1);
-                waypoints.splice(idx, 1);
-                debouncedRecalc();
-            }
-        });
-
-        waypointMarkers.push(mk);
-    }
-}
-
-// Inicializar cuando el DOM esté listo y conectar botones
 document.addEventListener('DOMContentLoaded', function() {
     initMap();
-
+    
     const btnEditar = document.getElementById('btnEditarRuta');
     const btnRecalc = document.getElementById('btnRecalcRuta');
-
+    
     if (btnEditar) {
         btnEditar.addEventListener('click', function() {
             editMode = !editMode;
             this.textContent = editMode ? 'Salir edición' : 'Editar ruta';
             this.classList.toggle('btn-primary', editMode);
-            this.classList.toggle('btn-secondary', !editMode);
-
-            if (editMode) {
-                if (rutaLinea) createWaypointMarkers(rutaLinea.getLatLngs());
+            if (editMode && rutaLinea) {
+                const puntos = rutaLinea.getLatLngs();
+                if (Array.isArray(puntos) && puntos.length) {
+                    waypointMarkers.forEach(m => map.removeLayer(m));
+                    waypointMarkers = [];
+                    waypoints = [];
+                    for (let i = 1; i < puntos.length - 1; i++) {
+                        const mk = L.marker(puntos[i], { draggable: true }).addTo(map);
+                        mk.setIcon(L.divIcon({ html: '<i class="fa fa-circle" style="color:#f59e0b;font-size:14px"></i>' }));
+                        mk.on('dragend', () => recalculateWithWaypoints());
+                        waypointMarkers.push(mk);
+                        waypoints.push(puntos[i]);
+                    }
+                }
             } else {
                 waypointMarkers.forEach(m => map.removeLayer(m));
                 waypointMarkers = [];
@@ -705,7 +588,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-
+    
     if (btnRecalc) {
         btnRecalc.addEventListener('click', recalculateWithWaypoints);
     }

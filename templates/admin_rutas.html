@@ -3,28 +3,280 @@
 {% block title %}Gestión de Rutas{% endblock %}
 
 {% block content %}
-<h1>Gestión de Rutas</h1>
-<a href="{{ url_for('nueva_ruta') }}" class="btn btn-new"><i class="fa fa-plus"></i> Agregar ruta</a>
+<div class="admin-section">
+    <div class="section-header">
+        <h1><i class="fa fa-route"></i> Gestión de Rutas</h1>
+        <a href="{{ url_for('nueva_ruta') }}" class="btn btn-new">
+            <i class="fa fa-plus"></i> Nueva Ruta
+        </a>
+    </div>
 
-<table>
-    <tr>
-        <th>Nombre</th>
-        <th>Origen</th>
-        <th>Destino</th>
-        <th>Horario</th>
-        <th>Acciones</th>
-    </tr>
-    {% for r in rutas %}
-    <tr>
-        <td>{{ r.nombre }}</td>
-        <td>{{ r.origen }}</td>
-        <td>{{ r.destino }}</td>
-        <td>{{ r.horario }}</td>
-        <td>
-            <a href="{{ url_for('editar_ruta', id=r.id) }}" class="btn btn-edit"><i class="fa fa-pencil-alt"></i> Editar</a>
-            <a href="{{ url_for('eliminar_ruta', id=r.id) }}" class="btn btn-delete"><i class="fa fa-trash"></i> Eliminar</a>
-        </td>
-    </tr>
-    {% endfor %}
-</table>
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Origen</th>
+                    <th>Destino</th>
+                    <th>Horario</th>
+                    <th>Tipo</th>
+                    <th>Conductor</th>
+                    <th>Duración Ida</th>
+                    <th>Duración Vuelta</th>
+                    <th>Distancia Ida</th>
+                    <th>Distancia Vuelta</th>
+                    <th>Coordenadas</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rutas %}
+                <tr>
+                    <td>{{ r.id }}</td>
+                    <td><strong>{{ r.nombre }}</strong></td>
+                    <td title="{{ r.origen }}">{{ r.origen[:40] }}{% if r.origen|length > 40 %}...{% endif %}</td>
+                    <td title="{{ r.destino }}">{{ r.destino[:40] }}{% if r.destino|length > 40 %}...{% endif %}</td>
+                    <td>{{ r.horario }}</td>
+                    <td>
+                        {% if r.tipo == 'interna' %}
+                            <span class="badge-interna">🏙️ Interna</span>
+                        {% else %}
+                            <span class="badge-inter">🛣️ Intermunicipal</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if r.conductor %}
+                            <span class="badge-conductor">👨‍✈️ {{ r.conductor.nombre }}</span>
+                        {% else %}
+                            <span class="badge-sin">❌ Sin conductor</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ r.duracion_ida or '-' }} min</td>
+                    <td>{{ r.duracion_vuelta or '-' }} min</td>
+                    <td>{{ r.distancia_ida or '-' }} km</td>
+                    <td>{{ r.distancia_vuelta or '-' }} km</td>
+                    <td>
+                        {% if r.coordenadas_ida and r.coordenadas_vuelta %}
+                            <span class="badge-coord" title="Tiene coordenadas">✅ Sí</span>
+                        {% else %}
+                            <span class="badge-sin" title="Sin coordenadas">❌ No</span>
+                        {% endif %}
+                    </td>
+                    <td class="actions">
+                        <a href="{{ url_for('editar_ruta', id=r.id) }}" class="btn-edit" title="Editar">
+                            <i class="fa fa-pencil-alt"></i>
+                        </a>
+                        <a href="{{ url_for('eliminar_ruta', id=r.id) }}" class="btn-delete" title="Eliminar" onclick="return confirm('¿Eliminar esta ruta?')">
+                            <i class="fa fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="13" class="empty-row">
+                        <i class="fa fa-route"></i>
+                        <p>No hay rutas registradas</p>
+                        <a href="{{ url_for('nueva_ruta') }}" class="btn-new">Crear primera ruta</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+.admin-section {
+    padding: 20px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.section-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #e2e8f0;
+}
+
+.btn-new {
+    background: #0ea5e9;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s;
+}
+
+.btn-new:hover {
+    background: #0284c7;
+    transform: translateY(-2px);
+}
+
+.table-container {
+    overflow-x: auto;
+    background: rgba(15, 23, 42, 0.96);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 800px;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px 10px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    color: #e2e8f0;
+    font-size: 13px;
+}
+
+.data-table th {
+    background: rgba(14, 165, 233, 0.15);
+    font-weight: 600;
+    color: #e2e8f0;
+    position: sticky;
+    top: 0;
+}
+
+.data-table tr:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+/* Badges */
+.badge-interna {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.badge-inter {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.badge-conductor {
+    background: rgba(14, 165, 233, 0.2);
+    color: #0ea5e9;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.badge-coord {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+}
+
+.badge-sin {
+    background: rgba(100, 116, 139, 0.2);
+    color: #94a3b8;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+}
+
+/* Botones de acción */
+.actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-edit, .btn-delete {
+    padding: 6px 10px;
+    border-radius: 6px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.btn-edit {
+    background: rgba(14, 165, 233, 0.15);
+    color: #0ea5e9;
+}
+
+.btn-edit:hover {
+    background: #0ea5e9;
+    color: white;
+}
+
+.btn-delete {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.btn-delete:hover {
+    background: #ef4444;
+    color: white;
+}
+
+/* Fila vacía */
+.empty-row {
+    text-align: center;
+    padding: 60px 20px !important;
+}
+
+.empty-row i {
+    font-size: 50px;
+    color: #334155;
+    margin-bottom: 15px;
+    display: block;
+}
+
+.empty-row p {
+    color: #94a3b8;
+    margin-bottom: 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .admin-section {
+        padding: 15px;
+    }
+    
+    .section-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .btn-new {
+        text-align: center;
+        justify-content: center;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 8px 6px;
+        font-size: 11px;
+    }
+}
+</style>
 {% endblock %}
