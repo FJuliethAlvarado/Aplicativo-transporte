@@ -28,7 +28,7 @@
                 {% for conductor in conductores %}
                 <tr id="conductor-{{ conductor.id }}">
                     <td>{{ conductor.id }}</td>
-                    <td>{{ conductor.username }}</td>
+                    <td>{{ conductor.nombre }}</td>
                     <td>{{ conductor.email }}</td>
                     <td>
                         {% if conductor.ruta_asignada %}
@@ -81,7 +81,7 @@
     <div class="modal-content">
         <h3><i class="fa fa-user-plus"></i> Nuevo Conductor</h3>
         <form id="formNuevoConductor">
-            <input type="text" id="username" placeholder="Nombre de usuario" required>
+            <input type="text" id="nombre" placeholder="Nombre del conductor" required>
             <input type="email" id="email" placeholder="Email" required>
             <input type="password" id="password" placeholder="Contraseña" required>
             <div class="modal-actions">
@@ -385,17 +385,17 @@ async function guardarAsignacion() {
 document.getElementById('formNuevoConductor')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    const username = document.getElementById('username').value;
+    const nombre = document.getElementById('nombre').value;
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     
-    if (!username || !email || !password) {
+    if (!nombre || !email || !password) {
         alert('Por favor complete todos los campos');
         return;
     }
     
     const formData = {
-        username: username,
+        nombre: nombre,
         email: email,
         password: password,
         tipo: 'conductor'
