@@ -152,7 +152,12 @@ async function cargarRutas() {
 }
 
 // ==================== DIBUJAR TODAS LAS RUTAS ====================
-function dibujarTodasLasRutas(rutas) {
+function dibujarTodasLasRutas(rutas = null) {
+    // Usar rutas con coordenadas si no se pasa un arreglo explícito
+    if (!rutas) {
+        rutas = todasLasRutas.filter(r => r.coordenadas_ida && r.coordenadas_vuelta);
+    }
+
     // Limpiar rutas anteriores
     rutasVisibles.forEach(item => {
         if (item.linea) map.removeLayer(item.linea);

@@ -83,7 +83,7 @@
                     <option value="">-- Sin conductor asignado --</option>
                     {% for conductor in conductores %}
                     <option value="{{ conductor.id }}" {% if ruta.conductor_id == conductor.id %}selected{% endif %}>
-                        <i class="fa fa-bus"></i> {{ conductor.username }} - {{ conductor.email }}
+                        <i class="fa fa-bus"></i> {{ conductor.nombre }} - {{ conductor.email }}
                     </option>
                     {% endfor %}
                 </select>

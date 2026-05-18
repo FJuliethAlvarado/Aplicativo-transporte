@@ -603,13 +603,21 @@ def admin_asignar_ruta_conductor():
 @app.route('/admin/crear_usuario', methods=['POST'])
 @admin_required
 def admin_crear_usuario():
-    data = request.get_json()
-    hashed_password = generate_password_hash(data['password'])
+    data = request.get_json() or {}
+    nombre = data.get('nombre') or data.get('username')
+    email = data.get('email')
+    password = data.get('password')
+    tipo = data.get('tipo', 'usuario')
+
+    if not nombre or not email or not password:
+        return jsonify({'status': 'error', 'error': 'Faltan datos requeridos'}), 400
+
+    hashed_password = generate_password_hash(password)
     user = User(
-        username=data['nombre'],
-        email=data['email'],
+        nombre=nombre,
+        email=email,
         password=hashed_password,
-        tipo=data.get('tipo', 'usuario')
+        tipo=tipo
     )
     db.session.add(user)
     db.session.commit()
