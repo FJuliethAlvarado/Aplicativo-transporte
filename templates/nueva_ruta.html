@@ -171,7 +171,7 @@
     border: 1px solid rgba(255,255,255,0.12);
     border-radius: 8px;
     font-size: 14px;
-    background: rgba(255,255,255,0.06);
+    background: #020617;
     color: #e2e8f0;
 }
 
@@ -317,6 +317,7 @@
 
 <script>
 // Variables globales
+let isRecalculating = false;
 var map;
 var origenMarker = null;
 var destinoMarker = null;
@@ -542,82 +543,123 @@ function limpiarPuntos() {
 }
 
 async function recalculateWithWaypoints() {
-    if (!origenCoords || !destinoCoords) return;
-
-    const currentWaypoints = waypointMarkers.length ? waypointMarkers.map(m => m.getLatLng()) : waypoints.filter(Boolean);
-    const pts = [origenCoords].concat(currentWaypoints).concat([destinoCoords]);
-    const validPts = pts.filter(p => p && typeof p.lat === 'number' && typeof p.lng === 'number');
-    if (validPts.length < 2) {
-        console.warn('No hay puntos válidos para recalcular la ruta');
-        return;
-    }
-
-    const coordsStr = validPts.map(p => `${p.lng},${p.lat}`).join(';');
-    const url = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson`;
+    if (isRecalculating) return;
+    isRecalculating = true;
 
     try {
-        const res = await fetch(encodeURI(url), { headers: { Accept: 'application/json' } });
-        if (!res.ok) {
-            throw new Error(`OSRM responded with status ${res.status}`);
+
+        if (!origenCoords || !destinoCoords) {
+            console.warn("Faltan origen o destino");
+            return;
         }
 
-        const data = await res.json();
-        if (!(data.code === 'Ok' && data.routes && data.routes.length)) {
-            throw new Error(`OSRM returned invalid route response: ${data.code || 'unknown'}`);
+        const MAX_WAYPOINTS = 8;
+
+        let currentWaypoints = waypointMarkers.length 
+            ? waypointMarkers.map(m => m.getLatLng()) 
+            : waypoints.filter(Boolean);
+
+        // limitar cantidad
+        if (currentWaypoints.length > MAX_WAYPOINTS) {
+            currentWaypoints = currentWaypoints.slice(0, MAX_WAYPOINTS);
         }
+
+        const pts = [origenCoords].concat(currentWaypoints).concat([destinoCoords]);
+
+        const validPts = pts.filter(p =>
+            p && typeof p.lat === 'number' && typeof p.lng === 'number'
+        );
+
+        if (validPts.length < 2) {
+            console.warn('No hay puntos válidos');
+            return;
+        }
+
+        const coordsStr = validPts.map(p => `${p.lng},${p.lat}`).join(';');
+
+        if (!coordsStr || coordsStr.includes("undefined") || coordsStr.includes("NaN")) {
+            alert("Coordenadas inválidas");
+            return;
+        }
+
+        const url = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson`;
+
+        const res = await fetch(url, {
+            headers: { Accept: 'application/json' }
+        });
+
+        if (!res.ok) throw new Error(`OSRM error ${res.status}`);
+
+        const data = await res.json();
 
         const route = data.routes[0];
         const idaCoords = route.geometry.coordinates.map(c => [c[1], c[0]]);
 
         if (rutaLinea) map.removeLayer(rutaLinea);
-        rutaLinea = L.polyline(idaCoords, { color: '#0ea5e9', weight: 5, opacity: 0.8 }).addTo(map);
+        rutaLinea = L.polyline(idaCoords, {
+            color: '#0ea5e9',
+            weight: 5,
+            opacity: 0.8
+        }).addTo(map);
 
         document.getElementById('coordenadas_ida').value = JSON.stringify(idaCoords);
-        document.getElementById('distancia_ida').value = (route.distance / 1000).toFixed(1);
-        document.getElementById('duracion_ida').value = Math.round(route.duration / 60);
 
-        waypoints = currentWaypoints;
-
-        // Recalcular la ruta de vuelta usando los mismos puntos en orden inverso para conservar el trayecto.
+        // 🔁 RUTA VUELTA
         const reverseWaypoints = currentWaypoints.slice().reverse();
         const reversePts = [destinoCoords].concat(reverseWaypoints).concat([origenCoords]);
-        const reverseValidPts = reversePts.filter(p => p && typeof p.lat === 'number' && typeof p.lng === 'number');
+
+        const reverseValidPts = reversePts.filter(p =>
+            p && typeof p.lat === 'number' && typeof p.lng === 'number'
+        );
+
         const reverseCoordsStr = reverseValidPts.map(p => `${p.lng},${p.lat}`).join(';');
+
         const reverseUrl = `https://router.project-osrm.org/route/v1/driving/${reverseCoordsStr}?overview=full&geometries=geojson`;
 
-        const reverseRes = await fetch(encodeURI(reverseUrl), { headers: { Accept: 'application/json' } });
-        if (!reverseRes.ok) {
-            throw new Error(`OSRM reverse responded with status ${reverseRes.status}`);
-        }
+        const reverseRes = await fetch(reverseUrl, {
+            headers: { Accept: 'application/json' }
+        });
+
+        if (!reverseRes.ok) throw new Error(`Reverse error ${reverseRes.status}`);
 
         const reverseData = await reverseRes.json();
-        if (!(reverseData.code === 'Ok' && reverseData.routes && reverseData.routes.length)) {
-            throw new Error(`OSRM reverse returned invalid response: ${reverseData.code || 'unknown'}`);
-        }
 
         const reverseRoute = reverseData.routes[0];
         const vueltaCoords = reverseRoute.geometry.coordinates.map(c => [c[1], c[0]]);
 
         if (rutaVueltaLinea) map.removeLayer(rutaVueltaLinea);
-        rutaVueltaLinea = L.polyline(vueltaCoords, { color: '#7c3aed', weight: 4, opacity: 0.6, dashArray: '10, 10' }).addTo(map);
-
-        document.getElementById('coordenadas_vuelta').value = JSON.stringify(vueltaCoords);
-        document.getElementById('distancia_vuelta').value = (reverseRoute.distance / 1000).toFixed(1);
-        document.getElementById('duracion_vuelta').value = Math.round(reverseRoute.duration / 60);
-
-        const bounds = L.latLngBounds(idaCoords.concat(vueltaCoords));
-        if (bounds.isValid()) {
-            map.fitBounds(bounds);
-        }
+        rutaVueltaLinea = L.polyline(vueltaCoords, {
+            color: '#7c3aed',
+            weight: 4,
+            opacity: 0.6,
+            dashArray: '10, 10'
+        }).addTo(map);
 
         mostrarInformacionRuta(
-            { duracion: Math.round(route.duration / 60), distancia: (route.distance / 1000).toFixed(1) },
-            { duracion: Math.round(reverseRoute.duration / 60), distancia: (reverseRoute.distance / 1000).toFixed(1) }
+            {
+                duracion: Math.round(route.duration / 60),
+                distancia: (route.distance / 1000).toFixed(1)
+            },
+            {
+                duracion: Math.round(reverseRoute.duration / 60),
+                distancia: (reverseRoute.distance / 1000).toFixed(1)
+            }
         );
+
     } catch (err) {
-        console.error('Error en recálculo:', err);
-        alert('Error al recalcular la ruta. Revisa tu conexión o los puntos seleccionados.');
+        console.error("Error en recálculo:", err);
+        alert("Error al recalcular la ruta");
+    } finally {
+        isRecalculating = false; // 🔥 CLAVE
     }
+}
+let recalcTimeout = null;
+
+function safeRecalculate() {
+    clearTimeout(recalcTimeout);
+    recalcTimeout = setTimeout(() => {
+        recalculateWithWaypoints();
+    }, 1200); // 1.2 segundos
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -633,23 +675,21 @@ document.addEventListener('DOMContentLoaded', function() {
             this.classList.toggle('btn-primary', editMode);
             if (editMode && rutaLinea) {
                 const puntos = rutaLinea.getLatLngs();
-                if (Array.isArray(puntos) && puntos.length) {
-                    waypointMarkers.forEach(m => map.removeLayer(m));
-                    waypointMarkers = [];
-                    waypoints = [];
-                    for (let i = 1; i < puntos.length - 1; i++) {
-                        const idx = i - 1;
-                        const mk = L.marker(puntos[i], { draggable: true }).addTo(map);
-                        mk.setIcon(L.divIcon({ html: '<i class="fa fa-circle" style="color:#f59e0b;font-size:14px"></i>' }));
-                        mk.on('dragend', function(e) {
-                            const nuevaPos = e.target.getLatLng();
-                            waypoints[idx] = nuevaPos;
-                            recalculateWithWaypoints();
-                        });
-                        waypointMarkers.push(mk);
-                        waypoints.push(puntos[i]);
-                    }
-                }
+                const step = Math.ceil(puntos.length / 8); // máximo 8 puntos
+
+                for (let i = step; i < puntos.length - 1; i += step) {
+                    const punto = puntos[i];
+
+                    const mk = L.marker(punto, { draggable: true }).addTo(map);
+
+                    mk.on('dragend', function(e) {
+                        waypoints[i] = e.target.getLatLng();
+                        recalculateWithWaypoints();
+                    });
+
+                    waypointMarkers.push(mk);
+                    waypoints.push(punto);
+                }   
             } else {
                 waypointMarkers.forEach(m => map.removeLayer(m));
                 waypointMarkers = [];

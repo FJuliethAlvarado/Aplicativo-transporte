@@ -10,6 +10,7 @@ from auth import admin_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 import pytz  
 import os
 
@@ -460,7 +461,7 @@ def admin_panel():
     
     # ===== ACTIVIDAD DIARIA =====
     # Usar UTC para que coincida con la BD
-    utc_now = datetime.utcnow()
+    utc_now = datetime.now(timezone.utc)
     
     actividad_diaria = {'labels': [], 'data': []}
     
@@ -485,7 +486,8 @@ def admin_panel():
     }
     
     # ===== LOG DE ACTIVIDAD =====
-    fecha_actual = datetime.utcnow()
+    utc_now = datetime.now(timezone.utc)
+    fecha_actual = utc_now.astimezone(ZoneInfo("America/Bogota"))
     fecha_inicio = request.args.get('inicio', (fecha_actual - timedelta(days=7)).strftime('%Y-%m-%d'))
     fecha_fin = request.args.get('fin', fecha_actual.strftime('%Y-%m-%d'))
     
@@ -589,8 +591,8 @@ def admin_conductores():
 @admin_required
 def admin_asignar_ruta_conductor():
     data = request.get_json()
-    conductor = User.query.get(data['conductor_id'])
-    ruta = Ruta.query.get(data['ruta_id'])
+    conductor = db.session.get(User, data['conductor_id'])
+    ruta = db.session.get(Ruta, data['ruta_id'])
     
     if conductor and ruta:
         # Actualizar conductor y ruta
@@ -851,7 +853,7 @@ def nueva_ruta():
     # GET: Obtener lista de conductores
     conductores = User.query.filter_by(tipo='conductor').all()
 
-    return render_template('nueva_ruta.html')
+    return render_template('nueva_ruta.html', conductores=conductores)
 
 @app.route('/admin/ruta/eliminar/<int:id>')
 @admin_required
@@ -897,13 +899,6 @@ def logout():
     
     session.clear()
     return redirect(url_for('login'))
-
-
-# ===== UBICACIÓN CONDUCTOR =====
-ubicacion_bus = {
-    "lat": 4.9186,
-    "lng": -74.0276
-}
 
 @app.route('/actualizar-ubicacion', methods=['POST'])
 def actualizar_ubicacion():
