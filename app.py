@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from sqlalchemy import text
@@ -6,6 +7,8 @@ from services.ruta_service import RutaService
 from auth import admin_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
+from datetime import datetime, timedelta, timezone
+import pytz  # pip install pytz
 import os
 
 app = Flask(__name__)
@@ -14,7 +17,6 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "supersecretkey")
 
 # ===== BASE DE DATOS (Render PostgreSQL) =====
-
 load_dotenv()  # Cargar variables de entorno desde .env
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -32,15 +34,29 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
+# ===== INICIALIZAR LOGIN MANAGER =====
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Por favor inicia sesión para acceder a esta página'
+
+# ===== USER LOADER =====
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
 # ===== MODELO USUARIO =====
-class User(db.Model):
+class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
-    tipo = db.Column(db.String(20), nullable=False)  # usuario / conductor / administrador
+    tipo = db.Column(db.String(20), nullable=False)
     ruta_asignada_id = db.Column(db.Integer, db.ForeignKey('ruta.id'), nullable=True)
     ruta_asignada = db.relationship('Ruta', backref='conductores', foreign_keys=[ruta_asignada_id])
+    
+    def get_id(self):
+        return str(self.id)
 
 # ===== MODELO RUTA =====
 class Ruta(db.Model):
@@ -86,6 +102,48 @@ class Trip(db.Model):
     
     def __repr__(self):
         return f'<Trip {self.id} - Usuario {self.usuario_id}>'
+    
+#====== LOG TRANSACCIONAL =====
+class LogTransaccional(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    accion = db.Column(db.String(100), nullable=False)  # login, ver_rutas, simular_bus, etc.
+    accion_tipo = db.Column(db.String(20), default='info')  # login, ruta, mapa
+    detalle = db.Column(db.Text)
+    ip = db.Column(db.String(50))
+    fecha = db.Column(db.DateTime, default=lambda: datetime.now(pytz.timezone('America/Bogota')))
+    
+    usuario = db.relationship('User', backref='logs')
+    
+    def __repr__(self):
+        return f'<Log {self.accion} - {self.fecha}>'
+    
+def registrar_actividad(usuario_id, accion, detalle='', ip=None):
+
+    # Usar zona horaria de Colombia
+    colombia_tz = timezone(timedelta(hours=-5))
+    ahora = datetime.now(colombia_tz)
+
+    log = LogTransaccional(
+        usuario_id=usuario_id,
+        accion=accion,
+        detalle=detalle,
+        ip=ip or request.remote_addr
+    )
+    
+    # Definir tipo de acción
+    if 'login' in accion:
+        log.accion_tipo = 'login'
+    elif 'ruta' in accion or 'ver_ruta' in accion:
+        log.accion_tipo = 'ruta'
+    elif 'mapa' in accion or 'bus' in accion or 'simular' in accion:
+        log.accion_tipo = 'mapa'
+    else:
+        log.accion_tipo = 'info'
+    
+    db.session.add(log)
+    db.session.commit()
+    print(f"✅ Actividad registrada: {accion} - Usuario: {usuario_id}")  # Para debug
 
 # ===== HOME =====
 @app.route('/')
@@ -114,6 +172,9 @@ def login():
             session.clear()
             session['user_id'] = user.id
             session['tipo'] = user.tipo
+            
+            # ✅ REGISTRAR ACTIVIDAD DE LOGIN
+            registrar_actividad(user.id, 'login', f'Inicio de sesión exitoso')
 
             if user.tipo == "usuario":
                 return redirect(url_for('mapa_usuario'))
@@ -161,6 +222,10 @@ def mapa_usuario():
     if session.get('tipo') != "usuario":
         return redirect(url_for('login'))
 
+    # REGISTRAR ACTIVIDAD - Acceso al mapa
+    if session.get('user_id'):
+        registrar_actividad(session['user_id'], 'ver_mapa', 'Accedió al mapa de usuario')
+
     return render_template('usuario.html')
 
 
@@ -169,10 +234,14 @@ def mapa_usuario():
 def mapa_conductor():
     if session.get('tipo') != "conductor":
         return redirect(url_for('login'))
+    
+    # REGISTRAR ACTIVIDAD - Acceso al mapa del conductor
+    if session.get('user_id'):
+        registrar_actividad(session['user_id'], 'ver_mapa_conductor', 'Accedió al mapa de conductor')
 
     conductor = None
     if session.get('user_id'):
-        conductor = User.query.get(session['user_id'])
+            conductor = db.session.get(User, session['user_id'])  
     return render_template('conductor.html', conductor=conductor)
 
 # ===== PERFIL DEL USUARIO =====
@@ -309,10 +378,11 @@ with app.app_context():
 @app.route('/admin')
 @admin_required
 def admin_panel():
+    
     usuarios = User.query.all()
     rutas = Ruta.query.all()
     
-    # Calculate statistics
+    # Estadísticas básicas
     stats = {
         'admin_count': len([u for u in usuarios if u.tipo == 'administrador']),
         'conductor_count': len([u for u in usuarios if u.tipo == 'conductor']),
@@ -323,11 +393,66 @@ def admin_panel():
         'total_rutas': len(rutas)
     }
     
+    # ===== ACTIVIDAD DIARIA =====
+    # Usar UTC para que coincida con la BD
+    utc_now = datetime.utcnow()
+    
+    actividad_diaria = {'labels': [], 'data': []}
+    
+    for i in range(6, -1, -1):
+        fecha = utc_now - timedelta(days=i)
+        fecha_inicio = datetime(fecha.year, fecha.month, fecha.day, 0, 0, 0)
+        fecha_fin = datetime(fecha.year, fecha.month, fecha.day, 23, 59, 59)
+        
+        count = LogTransaccional.query.filter(
+            LogTransaccional.fecha >= fecha_inicio,
+            LogTransaccional.fecha <= fecha_fin
+        ).count()
+        
+        actividad_diaria['labels'].append(fecha.strftime('%d/%m'))
+        actividad_diaria['data'].append(count)
+    
+    # ===== ESTADÍSTICAS DEL MAPA =====
+    mapa_stats = {
+        'visualizaciones_rutas': LogTransaccional.query.filter_by(accion='ver_rutas').count(),
+        'simulaciones_buses': LogTransaccional.query.filter_by(accion='simular_bus').count(),
+        'geolocalizaciones': LogTransaccional.query.filter_by(accion='geolocalizacion').count()
+    }
+    
+    # ===== LOG DE ACTIVIDAD =====
+    fecha_actual = datetime.utcnow()
+    fecha_inicio = request.args.get('inicio', (fecha_actual - timedelta(days=7)).strftime('%Y-%m-%d'))
+    fecha_fin = request.args.get('fin', fecha_actual.strftime('%Y-%m-%d'))
+    
+    logs_actividad = db.session.query(
+        LogTransaccional,
+        User.nombre.label('usuario_nombre')
+    ).join(User, LogTransaccional.usuario_id == User.id)\
+     .filter(db.func.date(LogTransaccional.fecha) >= fecha_inicio)\
+     .filter(db.func.date(LogTransaccional.fecha) <= fecha_fin)\
+     .order_by(LogTransaccional.fecha.desc())\
+     .limit(50)\
+     .all()
+    
+    logs_data = []
+    for log, nombre in logs_actividad:
+        logs_data.append({
+            'usuario_nombre': nombre,
+            'accion': log.accion,
+            'accion_tipo': log.accion_tipo,
+            'detalle': log.detalle,
+            'fecha': log.fecha.strftime('%Y-%m-%d %H:%M:%S')
+        })
+    
     return render_template('admin_inicio.html', 
                          usuarios=usuarios, 
                          rutas=rutas,
-                         stats=stats)
-
+                         stats=stats,
+                         actividad_diaria=actividad_diaria,
+                         mapa_stats=mapa_stats,
+                         logs_actividad=logs_data,
+                         fecha_inicio=fecha_inicio,
+                         fecha_fin=fecha_fin)
 
 @app.route('/admin/rutas')
 @admin_required
@@ -417,7 +542,7 @@ def admin_crear_usuario():
     data = request.get_json()
     hashed_password = generate_password_hash(data['password'])
     user = User(
-        username=data['username'],
+        username=data['nombre'],
         email=data['email'],
         password=hashed_password,
         tipo=data.get('tipo', 'usuario')
@@ -457,6 +582,15 @@ def api_rutas():
             'distancia_ida': ruta.distancia_ida,
             'distancia_vuelta': ruta.distancia_vuelta
         })
+    
+    # Registrar actividad usando session en lugar de current_user
+    if session.get('user_id'):
+        registrar_actividad(
+            session['user_id'], 
+            'ver_rutas', 
+            f'Visualizó {len(rutas_data)} rutas disponibles'
+        )
+    
     return jsonify(rutas_data)
 
 @app.route('/api/conductor/ruta/<int:ruta_id>')
@@ -468,11 +602,11 @@ def api_conductor_ruta(ruta_id):
     if not session.get('user_id'):
         return jsonify({'error': 'No autorizado'}), 403
 
-    conductor = User.query.get(session['user_id'])
+    conductor = db.session.get(User, session['user_id'])
     if not conductor or conductor.ruta_asignada_id != ruta_id:
         return jsonify({'error': 'No tienes acceso a esta ruta'}), 403
 
-    ruta = Ruta.query.get(ruta_id)
+    ruta = db.session.get(Ruta, ruta_id)
     if ruta:
         return jsonify({
             'ruta': {
@@ -489,6 +623,18 @@ def api_conductor_ruta(ruta_id):
             }
         })
     return jsonify({'error': 'Ruta no encontrada'}), 404
+
+@app.route('/api/registrar_actividad', methods=['POST'])
+def api_registrar_actividad():
+    data = request.get_json()
+    if session.get('user_id'):
+        registrar_actividad(
+            session['user_id'], 
+            data.get('accion', 'accion'), 
+            data.get('detalle', '')
+        )
+        return jsonify({'status': 'ok'})
+    return jsonify({'status': 'error'}), 401
 # ===== CRUD RUTAS =====
 @app.route('/admin/ruta/nueva', methods=['GET','POST'])
 @admin_required

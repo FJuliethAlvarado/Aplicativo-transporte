@@ -40,20 +40,123 @@
 
 .chart-container h2 {
     color: #e2e8f0;
+    margin-bottom: 20px;
+    font-size: 1.3rem;
 }
 
-/* Ajuste para pantallas pequeñas */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 24px;
+    margin-top: 24px;
+}
+
+.chart-box {
+    background: rgba(15, 23, 42, 0.96);
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.chart-box h3 {
+    color: #e2e8f0;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+canvas {
+    max-height: 300px;
+    width: 100% !important;
+}
+
+/* Tabla de actividad */
+.activity-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.activity-table th,
+.activity-table td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    color: #cbd5e1;
+}
+
+.activity-table th {
+    background: rgba(14, 165, 233, 0.2);
+    font-weight: 600;
+}
+
+.activity-table tr:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.badge-login {
+    background: #22c55e20;
+    color: #22c55e;
+}
+
+.badge-ruta {
+    background: #0ea5e920;
+    color: #0ea5e9;
+}
+
+.badge-mapa {
+    background: #f59e0b20;
+    color: #f59e0b;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
     .dashboard-cards {
         grid-template-columns: 1fr 1fr;
+    }
+    .charts-grid {
+        grid-template-columns: 1fr;
     }
     .chart-container {
         width: 100%;
         overflow-x: auto;
     }
 }
+
+/* Selector de fechas */
+.date-filter {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.date-filter input {
+    background: #1e293b;
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 8px 12px;
+    border-radius: 8px;
+    color: #e2e8f0;
+}
+
+.filter-btn {
+    background: #0ea5e9;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+}
 </style>
 
+<!-- Tarjetas de resumen -->
 <div class="dashboard-cards">
     <div class="card">
         <i class="fa fa-users"></i>
@@ -92,58 +195,177 @@
     </div>
 </div>
 
-<!-- Gráfico -->
+<!-- Gráficos principales -->
+<div class="charts-grid">
+    <!-- Gráfico de usuarios por rol -->
+    <div class="chart-box">
+        <h3><i class="fa fa-chart-pie"></i> Usuarios por Rol</h3>
+        <canvas id="usuariosChart"></canvas>
+    </div>
+
+    <!-- Gráfico de rutas por tipo -->
+    <div class="chart-box">
+        <h3><i class="fa fa-chart-bar"></i> Rutas por Tipo</h3>
+        <canvas id="rutasChart"></canvas>
+    </div>
+</div>
+
+<!-- Gráficos de actividad -->
+<div class="charts-grid">
+    <!-- Actividad diaria de usuarios -->
+    <div class="chart-box">
+        <h3><i class="fa fa-line-chart"></i> Actividad diaria (últimos 7 días)</h3>
+        <canvas id="actividadDiariaChart"></canvas>
+    </div>
+
+    <!-- Uso del mapa -->
+    <div class="chart-box">
+        <h3><i class="fa fa-map"></i> Estadísticas de uso del mapa</h3>
+        <canvas id="mapaStatsChart"></canvas>
+    </div>
+</div>
+
+<!-- Log de actividad reciente -->
 <div class="chart-container">
-    <h2>Estadísticas visuales</h2>
-    <canvas id="dashboardChart" width="400" height="250"></canvas>
+    <h2><i class="fa fa-history"></i> Actividad reciente de usuarios</h2>
+    <div class="date-filter">
+        <input type="date" id="fechaInicio" value="{{ fecha_inicio }}">
+        <input type="date" id="fechaFin" value="{{ fecha_fin }}">
+        <button class="filter-btn" onclick="filtrarActividad()">
+            <i class="fa fa-filter"></i> Filtrar
+        </button>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="activity-table" id="tablaActividad">
+            <thead>
+                <tr>
+                    <th>Usuario</th>
+                    <th>Acción</th>
+                    <th>Detalle</th>
+                    <th>Fecha/Hora</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs_actividad %}
+                <tr>
+                    <td>{{ log.usuario_nombre }}</td>
+                    <td><span class="badge badge-{{ log.accion_tipo }}">{{ log.accion }}</span></td>
+                    <td>{{ log.detalle }}</td>
+                    <td>{{ log.fecha }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    const ctx = document.getElementById('dashboardChart').getContext('2d');
-    const dashboardChart = new Chart(ctx, {
-        type: 'bar',
+    // Gráfico de usuarios por rol
+    const ctxUsuarios = document.getElementById('usuariosChart').getContext('2d');
+    new Chart(ctxUsuarios, {
+        type: 'pie',
         data: {
-            labels: [
-                'Administradores',
-                'Conductores',
-                'Usuarios finales',
-                'Rutas intermunicipales',
-                'Rutas internas'
-            ],
+            labels: ['Administradores', 'Conductores', 'Usuarios finales'],
             datasets: [{
-                label: 'Cantidad',
                 data: [
                     {{ stats.admin_count }},
                     {{ stats.conductor_count }},
-                    {{ stats.usuario_count }},
-                    {{ stats.intermunicipal_count }},
-                    {{ stats.interna_count }}
+                    {{ stats.usuario_count }}
                 ],
-                backgroundColor: [
-                    '#22c55e',
-                    '#0ea5e9',
-                    '#f59e0b',
-                    '#6366f1',
-                    '#dc2626'
-                ]
+                backgroundColor: ['#22c55e', '#0ea5e9', '#f59e0b']
             }]
         },
-        
         options: {
-            responsive: false,
-            maintainAspectRatio: false,
+            responsive: true,
             plugins: {
-                legend: { display: false },
-                title: { display: true, text: 'Usuarios y Rutas por categoría' }
-            },
-            scales: {
-                y: { 
-                    beginAtZero: true,
-                    ticks: { stepSize: 1 }
-                }
+                legend: { position: 'bottom', labels: { color: '#e2e8f0' } }
             }
         }
     });
+
+    // Gráfico de rutas por tipo
+    const ctxRutas = document.getElementById('rutasChart').getContext('2d');
+    new Chart(ctxRutas, {
+        type: 'bar',
+        data: {
+            labels: ['Rutas internas', 'Rutas intermunicipales'],
+            datasets: [{
+                label: 'Cantidad',
+                data: [
+                    {{ stats.interna_count }},
+                    {{ stats.intermunicipal_count }}
+                ],
+                backgroundColor: ['#0ea5e9', '#f59e0b']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { labels: { color: '#e2e8f0' } }
+            },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1, color: '#e2e8f0' } },
+                x: { ticks: { color: '#e2e8f0' } }
+            }
+        }
+    });
+
+    // Gráfico de actividad diaria
+    const ctxActividad = document.getElementById('actividadDiariaChart').getContext('2d');
+    new Chart(ctxActividad, {
+        type: 'line',
+        data: {
+            labels: {{ actividad_diaria.labels | tojson }},
+            datasets: [{
+                label: 'Actividad de usuarios',
+                data: {{ actividad_diaria.data | tojson }},
+                borderColor: '#0ea5e9',
+                backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { labels: { color: '#e2e8f0' } }
+            },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1, color: '#e2e8f0' } },
+                x: { ticks: { color: '#e2e8f0' } }
+            }
+        }
+    });
+
+    // Gráfico de estadísticas del mapa
+    const ctxMapa = document.getElementById('mapaStatsChart').getContext('2d');
+    new Chart(ctxMapa, {
+        type: 'doughnut',
+        data: {
+            labels: ['Visualizaciones de rutas', 'Simulación de buses', 'Uso de geolocalización'],
+            datasets: [{
+                data: [
+                    {{ mapa_stats.visualizaciones_rutas }},
+                    {{ mapa_stats.simulaciones_buses }},
+                    {{ mapa_stats.geolocalizaciones }}
+                ],
+                backgroundColor: ['#0ea5e9', '#22c55e', '#f59e0b']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#e2e8f0' } }
+            }
+        }
+    });
+
+    // Filtrar actividad
+    function filtrarActividad() {
+        const fechaInicio = document.getElementById('fechaInicio').value;
+        const fechaFin = document.getElementById('fechaFin').value;
+        window.location.href = `/admin?inicio=${fechaInicio}&fin=${fechaFin}`;
+    }
 </script>
 {% endblock %}
