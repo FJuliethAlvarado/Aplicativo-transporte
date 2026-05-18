@@ -225,39 +225,6 @@ canvas {
     </div>
 </div>
 
-<!-- Log de actividad reciente -->
-<div class="chart-container">
-    <h2><i class="fa fa-history"></i> Actividad reciente de usuarios</h2>
-    <div class="date-filter">
-        <input type="date" id="fechaInicio" value="{{ fecha_inicio }}">
-        <input type="date" id="fechaFin" value="{{ fecha_fin }}">
-        <button class="filter-btn" onclick="filtrarActividad()">
-            <i class="fa fa-filter"></i> Filtrar
-        </button>
-    </div>
-    <div style="overflow-x: auto;">
-        <table class="activity-table" id="tablaActividad">
-            <thead>
-                <tr>
-                    <th>Usuario</th>
-                    <th>Acción</th>
-                    <th>Detalle</th>
-                    <th>Fecha/Hora</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for log in logs_actividad %}
-                <tr>
-                    <td>{{ log.usuario_nombre }}</td>
-                    <td><span class="badge badge-{{ log.accion_tipo }}">{{ log.accion }}</span></td>
-                    <td>{{ log.detalle }}</td>
-                    <td>{{ log.fecha }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>

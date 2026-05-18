@@ -101,49 +101,52 @@ class Trip(db.Model):
     estado = db.Column(db.String(20), default='completado')  # completado, cancelado
     
     def __repr__(self):
-        return f'<Trip {self.id} - Usuario {self.usuario_id}>'
-    
-#====== LOG TRANSACCIONAL =====
-class LogTransaccional(db.Model):
+        return f'<Trip {self.id}>'
+
+# ===== MODELO LOG TRANSACCIONAL =====
+class TransactionalLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     usuario_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    accion = db.Column(db.String(100), nullable=False)  # login, ver_rutas, simular_bus, etc.
-    accion_tipo = db.Column(db.String(20), default='info')  # login, ruta, mapa
-    detalle = db.Column(db.Text)
-    ip = db.Column(db.String(50))
-    fecha = db.Column(db.DateTime, default=lambda: datetime.now(pytz.timezone('America/Bogota')))
+    usuario = db.relationship('User', backref='logs_transaccionales')
     
-    usuario = db.relationship('User', backref='logs')
+    accion = db.Column(db.String(100), nullable=False)  # login, logout, registro, ver_mapa, etc.
+    descripcion = db.Column(db.Text, nullable=True)
+    tipo_resultado = db.Column(db.String(20), default='exito')  # exito, fallo
+    
+    fecha_hora = db.Column(db.DateTime, default=db.func.now())
+    ip_address = db.Column(db.String(45), nullable=True)  # IPv4 o IPv6
+    user_agent = db.Column(db.String(255), nullable=True)
+    
+    datos_adicionales = db.Column(db.Text, nullable=True)  # JSON con info adicional
     
     def __repr__(self):
-        return f'<Log {self.accion} - {self.fecha}>'
-    
-def registrar_actividad(usuario_id, accion, detalle='', ip=None):
+        return f'<Log {self.accion} - {self.usuario_id}>'
 
-    # Usar zona horaria de Colombia
-    colombia_tz = timezone(timedelta(hours=-5))
-    ahora = datetime.now(colombia_tz)
-
-    log = LogTransaccional(
-        usuario_id=usuario_id,
-        accion=accion,
-        detalle=detalle,
-        ip=ip or request.remote_addr
-    )
+#====== FUNCIÓN AUXILIAR PARA REGISTRAR ACTIVIDADES =====
+def registrar_actividad(usuario_id, accion, descripcion='', tipo_resultado='exito', datos_adicionales=None):
+    """
+    Registra una actividad en el log transaccional.
     
-    # Definir tipo de acción
-    if 'login' in accion:
-        log.accion_tipo = 'login'
-    elif 'ruta' in accion or 'ver_ruta' in accion:
-        log.accion_tipo = 'ruta'
-    elif 'mapa' in accion or 'bus' in accion or 'simular' in accion:
-        log.accion_tipo = 'mapa'
-    else:
-        log.accion_tipo = 'info'
-    
-    db.session.add(log)
-    db.session.commit()
-    print(f"✅ Actividad registrada: {accion} - Usuario: {usuario_id}")  # Para debug
+    accion: login, logout, registro, ver_mapa, ver_rutas, alternar_sentido, simular_bus, geolocalización, etc.
+    tipo_resultado: exito o fallo
+    datos_adicionales: JSON string con info adicional (ruta_id, etc.)
+    """
+    try:
+        log = TransactionalLog(
+            usuario_id=usuario_id,
+            accion=accion,
+            descripcion=descripcion,
+            tipo_resultado=tipo_resultado,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent', ''),
+            datos_adicionales=datos_adicionales
+        )
+        db.session.add(log)
+        db.session.commit()
+        print(f"✅ Log registrado: {accion} (Usuario: {usuario_id}, Resultado: {tipo_resultado})")
+    except Exception as e:
+        print(f"❌ Error registrando log: {e}")
+        db.session.rollback()
 
 # ===== HOME =====
 @app.route('/')
@@ -199,6 +202,7 @@ def register():
         # evitar duplicados
         existe = User.query.filter_by(email=correo).first()
         if existe:
+            registrar_actividad(0, 'registro_fallido', f'Intento de registro con email duplicado: {correo}', 'fallo')
             return "El usuario ya existe"
 
         nuevo_usuario = User(
@@ -210,6 +214,9 @@ def register():
 
         db.session.add(nuevo_usuario)
         db.session.commit()
+        
+        # ✅ REGISTRAR ACTIVIDAD DE REGISTRO
+        registrar_actividad(nuevo_usuario.id, 'registro', f'Usuario registrado: {nombre} ({correo})')
 
         return redirect(url_for('login'))
 
@@ -404,9 +411,9 @@ def admin_panel():
         fecha_inicio = datetime(fecha.year, fecha.month, fecha.day, 0, 0, 0)
         fecha_fin = datetime(fecha.year, fecha.month, fecha.day, 23, 59, 59)
         
-        count = LogTransaccional.query.filter(
-            LogTransaccional.fecha >= fecha_inicio,
-            LogTransaccional.fecha <= fecha_fin
+        count = TransactionalLog.query.filter(
+            TransactionalLog.fecha_hora >= fecha_inicio,
+            TransactionalLog.fecha_hora <= fecha_fin
         ).count()
         
         actividad_diaria['labels'].append(fecha.strftime('%d/%m'))
@@ -414,9 +421,9 @@ def admin_panel():
     
     # ===== ESTADÍSTICAS DEL MAPA =====
     mapa_stats = {
-        'visualizaciones_rutas': LogTransaccional.query.filter_by(accion='ver_rutas').count(),
-        'simulaciones_buses': LogTransaccional.query.filter_by(accion='simular_bus').count(),
-        'geolocalizaciones': LogTransaccional.query.filter_by(accion='geolocalizacion').count()
+        'visualizaciones_rutas': TransactionalLog.query.filter_by(accion='ver_rutas').count(),
+        'simulaciones_buses': TransactionalLog.query.filter_by(accion='simular_bus').count(),
+        'geolocalizaciones': TransactionalLog.query.filter_by(accion='geolocalización').count()
     }
     
     # ===== LOG DE ACTIVIDAD =====
@@ -425,12 +432,12 @@ def admin_panel():
     fecha_fin = request.args.get('fin', fecha_actual.strftime('%Y-%m-%d'))
     
     logs_actividad = db.session.query(
-        LogTransaccional,
+        TransactionalLog,
         User.nombre.label('usuario_nombre')
-    ).join(User, LogTransaccional.usuario_id == User.id)\
-     .filter(db.func.date(LogTransaccional.fecha) >= fecha_inicio)\
-     .filter(db.func.date(LogTransaccional.fecha) <= fecha_fin)\
-     .order_by(LogTransaccional.fecha.desc())\
+    ).join(User, TransactionalLog.usuario_id == User.id)\
+     .filter(db.func.date(TransactionalLog.fecha_hora) >= fecha_inicio)\
+     .filter(db.func.date(TransactionalLog.fecha_hora) <= fecha_fin)\
+     .order_by(TransactionalLog.fecha_hora.desc())\
      .limit(50)\
      .all()
     
@@ -439,9 +446,8 @@ def admin_panel():
         logs_data.append({
             'usuario_nombre': nombre,
             'accion': log.accion,
-            'accion_tipo': log.accion_tipo,
-            'detalle': log.detalle,
-            'fecha': log.fecha.strftime('%Y-%m-%d %H:%M:%S')
+            'descripcion': log.descripcion,
+            'fecha': log.fecha_hora.strftime('%Y-%m-%d %H:%M:%S')
         })
     
     return render_template('admin_inicio.html', 
@@ -697,6 +703,10 @@ def editar_ruta(id):
 # ===== LOGOUT =====
 @app.route('/logout')
 def logout():
+    # ❌ REGISTRAR ACTIVIDAD DE LOGOUT
+    if session.get('user_id'):
+        registrar_actividad(session['user_id'], 'logout', 'Usuario cerró sesión')
+    
     session.clear()
     return redirect(url_for('login'))
 
@@ -728,11 +738,141 @@ def actualizar_ubicacion():
 # ===== OBTENER UBICACIÓN =====
 @app.route('/obtener-ubicacion')
 def obtener_ubicacion():
-
     return jsonify(ubicacion_bus)
+
+# ===== API: OBTENER ACTIVIDADES RECIENTES (CON PAGINACIÓN) =====
+@app.route('/api/admin/actividades', methods=['GET'])
+@admin_required
+def api_actividades():
+    page = request.args.get('page', 1, type=int)
+    per_page = 8  # 8 resultados por página
+    
+    # Obtener filtros opcionales
+    usuario_id = request.args.get('usuario_id', type=int)
+    accion = request.args.get('accion')
+    tipo_resultado = request.args.get('tipo_resultado')
+    
+    query = TransactionalLog.query
+    
+    if usuario_id:
+        query = query.filter_by(usuario_id=usuario_id)
+    if accion:
+        query = query.filter_by(accion=accion)
+    if tipo_resultado:
+        query = query.filter_by(tipo_resultado=tipo_resultado)
+    
+    # Ordenar por fecha descendente y paginar
+    paginated = query.order_by(TransactionalLog.fecha_hora.desc()).paginate(page=page, per_page=per_page)
+    
+    logs_data = []
+    for log in paginated.items:
+        logs_data.append({
+            'id': log.id,
+            'usuario_nombre': log.usuario.nombre,
+            'usuario_email': log.usuario.email,
+            'accion': log.accion,
+            'descripcion': log.descripcion,
+            'tipo_resultado': log.tipo_resultado,
+            'fecha_hora': log.fecha_hora.strftime('%Y-%m-%d %H:%M:%S'),
+            'ip_address': log.ip_address,
+            'datos_adicionales': log.datos_adicionales
+        })
+    
+    return jsonify({
+        'logs': logs_data,
+        'total': paginated.total,
+        'pages': paginated.pages,
+        'current_page': page,
+        'has_next': paginated.has_next,
+        'has_prev': paginated.has_prev
+    })
+
+# ===== API: REGISTRAR EVENTO DESDE CLIENTE =====
+@app.route('/api/log-event', methods=['POST'])
+def api_log_event():
+    """Endpoint para que el cliente (JS) registre eventos como alternar_sentido, simular_bus, etc."""
+    if not session.get('user_id'):
+        return jsonify({'error': 'No autorizado'}), 401
+    
+    data = request.get_json()
+    accion = data.get('accion')
+    descripcion = data.get('descripcion', '')
+    datos_adicionales = data.get('datos_adicionales')
+    
+    registrar_actividad(session['user_id'], accion, descripcion, 'exito', datos_adicionales)
+    
+    return jsonify({'status': 'ok'})
+
+# ===== PÁGINA ADMIN: VER ACTIVIDADES RECIENTES =====
+@app.route('/admin/actividades')
+@admin_required
+def admin_actividades():
+    usuarios = User.query.all()
+    acciones_disponibles = [
+        'login', 'logout', 'registro', 'registro_fallido',
+        'ver_mapa', 'ver_mapa_conductor', 'ver_rutas',
+        'alternar_sentido', 'simular_bus', 'geolocalización'
+    ]
+    
+    return render_template('admin_actividades.html', 
+                          usuarios=usuarios,
+                          acciones=acciones_disponibles)
+
+# ===== EXPORTAR REPORTE CSV =====
+@app.route('/admin/actividades/exportar', methods=['GET'])
+@admin_required
+def exportar_actividades_csv():
+    """Exporta el log de actividades a CSV"""
+    import csv
+    from io import StringIO
+    
+    # Obtener filtros
+    usuario_id = request.args.get('usuario_id', type=int)
+    accion = request.args.get('accion')
+    tipo_resultado = request.args.get('tipo_resultado')
+    fecha_inicio = request.args.get('fecha_inicio')
+    fecha_fin = request.args.get('fecha_fin')
+    
+    query = TransactionalLog.query
+    
+    if usuario_id:
+        query = query.filter_by(usuario_id=usuario_id)
+    if accion:
+        query = query.filter_by(accion=accion)
+    if tipo_resultado:
+        query = query.filter_by(tipo_resultado=tipo_resultado)
+    if fecha_inicio:
+        query = query.filter(TransactionalLog.fecha_hora >= fecha_inicio)
+    if fecha_fin:
+        query = query.filter(TransactionalLog.fecha_hora <= fecha_fin)
+    
+    logs = query.order_by(TransactionalLog.fecha_hora.desc()).all()
+    
+    # Crear CSV en memoria
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['ID', 'Usuario', 'Email', 'Acción', 'Descripción', 'Resultado', 'Fecha/Hora', 'IP'])
+    
+    for log in logs:
+        writer.writerow([
+            log.id,
+            log.usuario.nombre,
+            log.usuario.email,
+            log.accion,
+            log.descripcion or '',
+            log.tipo_resultado,
+            log.fecha_hora.strftime('%Y-%m-%d %H:%M:%S'),
+            log.ip_address or ''
+        ])
+    
+    # Preparar respuesta como archivo descargable
+    from flask import make_response
+    response = make_response(output.getvalue())
+    response.headers['Content-Disposition'] = f'attachment; filename=reporte_actividades_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+    response.headers['Content-Type'] = 'text/csv'
+    
+    return response
 
 
 if __name__ == '__main__':
     app.run(debug=True)
-    
-

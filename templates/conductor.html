@@ -506,6 +506,17 @@ function alternarSentido() {
     sentidoActual = sentidoActual === 'ida' ? 'vuelta' : 'ida';
     actualizarInfoRuta();
     dibujarRuta();
+    
+    // ❌ REGISTRAR EVENTO AL SERVIDOR
+    fetch('/api/log-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            accion: 'alternar_sentido',
+            descripcion: `Cambió a sentido: ${sentidoActual === 'ida' ? 'Ida' : 'Vuelta'}`
+        })
+    }).catch(e => console.error('Error registrando evento:', e));
+    
     mostrarNotificacion(`Cambiando a sentido: ${sentidoActual === 'ida' ? 'Ida' : 'Vuelta'}`, 'info');
 }
 
@@ -548,6 +559,17 @@ function actualizarUbicacion(position) {
         <b>Lng:</b> ${lng.toFixed(5)}<br>
         <b>Sentido:</b> ${sentidoActual === 'ida' ? 'Ida →' : 'Vuelta ←'}
     `);
+    
+    // ✅ REGISTRAR EVENTO DE GEOLOCALIZACIÓN (ACTUALIZACIÓN)
+    fetch('/api/log-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            accion: 'geolocalización',
+            descripcion: `Actualización de ubicación: ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+            datos_adicionales: JSON.stringify({ lat, lng, ruta_id: rutaData?.id })
+        })
+    }).catch(e => console.error('Error registrando evento:', e));
     
     // Enviar ubicación al servidor
     enviarUbicacionServidor(lat, lng);
@@ -594,6 +616,16 @@ function locate() {
     } else {
         map.locate({setView: true, maxZoom: 16});
     }
+    
+    // ✅ REGISTRAR EVENTO DE GEOLOCALIZACIÓN
+    fetch('/api/log-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            accion: 'geolocalización',
+            descripcion: 'Solicitó obtener su ubicación actual'
+        })
+    }).catch(e => console.error('Error registrando evento:', e));
 }
 
 function centrarRuta() {

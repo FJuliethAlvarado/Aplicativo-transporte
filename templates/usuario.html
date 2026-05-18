@@ -100,6 +100,16 @@ async function cargarRutas() {
         
         console.log('Rutas recibidas:', rutas);
         
+        // ✅ REGISTRAR EVENTO DE VER RUTAS
+        fetch('/api/log-event', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                accion: 'ver_rutas',
+                descripcion: `Consultó ${rutas.length} rutas disponibles`
+            })
+        }).catch(e => console.error('Error registrando evento:', e));
+        
         if (rutas.length === 0) {
             mostrarNotificacion('No hay rutas disponibles', 'warning');
             return;
@@ -233,6 +243,16 @@ function alternarSentido() {
     sentidoActual = sentidoActual === 'ida' ? 'vuelta' : 'ida';
     document.getElementById('sentido-texto').innerHTML = sentidoActual === 'ida' ? 'Ida' : 'Vuelta';
     
+    // ❌ REGISTRAR EVENTO AL SERVIDOR
+    fetch('/api/log-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            accion: 'alternar_sentido',
+            descripcion: `Cambió a sentido: ${sentidoActual === 'ida' ? 'Ida' : 'Vuelta'}`
+        })
+    }).catch(e => console.error('Error registrando evento:', e));
+    
     // Detener bus si está en movimiento
     if (intervaloBus) {
         clearInterval(intervaloBus);
@@ -262,6 +282,17 @@ function simularBus(rutaId) {
     }
     
     console.log('Simulando bus para:', rutaData.nombre);
+    
+    // ❌ REGISTRAR EVENTO AL SERVIDOR
+    fetch('/api/log-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            accion: 'simular_bus',
+            descripcion: `Simuló recorrido de ruta: ${rutaData.nombre}`,
+            datos_adicionales: JSON.stringify({ ruta_id: rutaId, sentido: sentidoActual })
+        })
+    }).catch(e => console.error('Error registrando evento:', e));
     
     // Detener bus anterior
     if (intervaloBus) {
@@ -352,6 +383,16 @@ function zoomOut() { map.zoomOut(); }
 function locate() { 
     map.locate({setView: true, maxZoom: 16});
     mostrarNotificacion('Buscando tu ubicación...', 'info');
+    
+    // ✅ REGISTRAR EVENTO DE GEOLOCALIZACIÓN
+    fetch('/api/log-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            accion: 'geolocalización',
+            descripcion: 'Solicitó obtener su ubicación actual'
+        })
+    }).catch(e => console.error('Error registrando evento:', e));
 }
 
 function cerrarSesion() {

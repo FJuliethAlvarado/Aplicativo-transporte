@@ -1,0 +1,377 @@
+{% extends "admin.html" %}
+
+{% block title %}Actividades Recientes - Admin{% endblock %}
+
+{% block content %}
+<div class="activities-container">
+    <h1>📊 Registro de Actividades Transaccionales</h1>
+    
+    <!-- FILTROS -->
+    <div class="filters-section">
+        <div class="filter-group">
+            <label for="usuarioFilter">Filtrar por Usuario:</label>
+            <select id="usuarioFilter">
+                <option value="">-- Todos --</option>
+                {% for usuario in usuarios %}
+                <option value="{{ usuario.id }}">{{ usuario.nombre }} ({{ usuario.tipo }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label for="accionFilter">Filtrar por Acción:</label>
+            <select id="accionFilter">
+                <option value="">-- Todos --</option>
+                {% for accion in acciones %}
+                <option value="{{ accion }}">{{ accion }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label for="resultadoFilter">Filtrar por Resultado:</label>
+            <select id="resultadoFilter">
+                <option value="">-- Todos --</option>
+                <option value="exito">✅ Éxito</option>
+                <option value="fallo">❌ Fallo</option>
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <button onclick="aplicarFiltros()" class="btn-primary">
+                <i class="fa fa-filter"></i> Aplicar Filtros
+            </button>
+            <button onclick="limpiarFiltros()" class="btn-secondary">
+                <i class="fa fa-times"></i> Limpiar
+            </button>
+            <button onclick="exportarReporte()" class="btn-success">
+                <i class="fa fa-download"></i> Exportar CSV
+            </button>
+        </div>
+    </div>
+    
+    <!-- TABLA DE ACTIVIDADES -->
+    <div class="table-section">
+        <table id="actividadesTable" class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Usuario</th>
+                    <th>Acción</th>
+                    <th>Descripción</th>
+                    <th>Resultado</th>
+                    <th>Fecha/Hora</th>
+                    <th>IP</th>
+                </tr>
+            </thead>
+            <tbody id="actividadesBody">
+                <tr><td colspan="7" style="text-align: center;">Cargando...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- PAGINACIÓN -->
+    <div class="pagination-section">
+        <button onclick="irPagina(1)" class="btn-pagination">« Primera</button>
+        <button onclick="irPagina(paginaActual - 1)" class="btn-pagination" id="btnAnterior" disabled>‹ Anterior</button>
+        
+        <div class="page-info">
+            Página <span id="paginaInfo">1</span> de <span id="totalPaginasInfo">1</span>
+        </div>
+        
+        <button onclick="irPagina(paginaActual + 1)" class="btn-pagination" id="btnSiguiente" disabled>Siguiente ›</button>
+        <button onclick="irPagina(totalPaginas)" class="btn-pagination">Última »</button>
+    </div>
+</div>
+
+<style>
+.activities-container {
+    padding: 20px;
+    background: #0f172a;
+    min-height: calc(100vh - 100px);
+    color: #e2e8f0;
+}
+
+.activities-container h1 {
+    margin-bottom: 20px;
+    color: #e2e8f0;
+    font-size: 1.8rem;
+}
+
+.filters-section {
+    background: rgba(15, 23, 42, 0.95);
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255,255,255,0.08);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 15px;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.filter-group label {
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #cbd5e1;
+    font-size: 13px;
+}
+
+.filter-group select {
+    padding: 10px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px;
+    color: #e2e8f0;
+    font-size: 14px;
+}
+
+.btn-primary {
+    background: #0ea5e9;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-primary:hover {
+    background: #0284c7;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: #6b7280;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-secondary:hover {
+    background: #4b5563;
+}
+
+.btn-success {
+    background: #22c55e;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-success:hover {
+    background: #16a34a;
+}
+
+.table-section {
+    background: rgba(15, 23, 42, 0.95);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 20px;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table thead {
+    background: rgba(14,165,233,0.15);
+    border-bottom: 2px solid rgba(14,165,233,0.3);
+}
+
+.table th {
+    padding: 14px;
+    text-align: left;
+    font-weight: 600;
+    color: #ffffff;
+    font-size: 13px;
+    text-transform: uppercase;
+}
+
+.table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    color: #cbd5e1;
+    font-size: 13px;
+}
+
+.table tbody tr:hover {
+    background: rgba(14,165,233,0.08);
+}
+
+.status-exito {
+    color: #22c55e;
+    font-weight: 600;
+}
+
+.status-fallo {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.pagination-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.btn-pagination {
+    background: rgba(14,165,233,0.2);
+    color: #0ea5e9;
+    border: 1px solid rgba(14,165,233,0.5);
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-pagination:hover:not(:disabled) {
+    background: rgba(14,165,233,0.4);
+    transform: scale(1.05);
+}
+
+.btn-pagination:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.page-info {
+    color: #e2e8f0;
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .filters-section {
+        grid-template-columns: 1fr;
+    }
+    
+    .table {
+        font-size: 12px;
+    }
+    
+    .table th, .table td {
+        padding: 8px 10px;
+    }
+}
+</style>
+
+<script>
+let paginaActual = 1;
+let totalPaginas = 1;
+
+// Función para cargar actividades
+async function cargarActividades(pagina = 1) {
+    try {
+        const usuarioId = document.getElementById('usuarioFilter').value;
+        const accion = document.getElementById('accionFilter').value;
+        const resultado = document.getElementById('resultadoFilter').value;
+        
+        let url = `/api/admin/actividades?page=${pagina}`;
+        if (usuarioId) url += `&usuario_id=${usuarioId}`;
+        if (accion) url += `&accion=${accion}`;
+        if (resultado) url += `&tipo_resultado=${resultado}`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        paginaActual = data.current_page;
+        totalPaginas = data.pages;
+        
+        const tbody = document.getElementById('actividadesBody');
+        tbody.innerHTML = '';
+        
+        if (data.logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">No hay registros para mostrar</td></tr>';
+        } else {
+            data.logs.forEach(log => {
+                const row = document.createElement('tr');
+                const statusClass = log.tipo_resultado === 'exito' ? 'status-exito' : 'status-fallo';
+                const statusText = log.tipo_resultado === 'exito' ? '✅ Éxito' : '❌ Fallo';
+                
+                row.innerHTML = `
+                    <td>${log.id}</td>
+                    <td><strong>${log.usuario_nombre}</strong><br><small>${log.usuario_email}</small></td>
+                    <td><code>${log.accion}</code></td>
+                    <td>${log.descripcion || '-'}</td>
+                    <td><span class="${statusClass}">${statusText}</span></td>
+                    <td>${log.fecha_hora}</td>
+                    <td>${log.ip_address || '-'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        // Actualizar paginación
+        document.getElementById('paginaInfo').textContent = paginaActual;
+        document.getElementById('totalPaginasInfo').textContent = totalPaginas;
+        document.getElementById('btnAnterior').disabled = !data.has_prev;
+        document.getElementById('btnSiguiente').disabled = !data.has_next;
+        
+    } catch (error) {
+        console.error('Error cargando actividades:', error);
+        document.getElementById('actividadesBody').innerHTML = '<tr><td colspan="7" style="text-align: center; color: red;">Error al cargar datos</td></tr>';
+    }
+}
+
+function irPagina(pagina) {
+    if (pagina >= 1 && pagina <= totalPaginas) {
+        cargarActividades(pagina);
+    }
+}
+
+function aplicarFiltros() {
+    cargarActividades(1);
+}
+
+function limpiarFiltros() {
+    document.getElementById('usuarioFilter').value = '';
+    document.getElementById('accionFilter').value = '';
+    document.getElementById('resultadoFilter').value = '';
+    cargarActividades(1);
+}
+
+function exportarReporte() {
+    const usuarioId = document.getElementById('usuarioFilter').value;
+    const accion = document.getElementById('accionFilter').value;
+    const resultado = document.getElementById('resultadoFilter').value;
+    
+    let url = '/admin/actividades/exportar';
+    let params = [];
+    
+    if (usuarioId) params.push(`usuario_id=${usuarioId}`);
+    if (accion) params.push(`accion=${accion}`);
+    if (resultado) params.push(`tipo_resultado=${resultado}`);
+    
+    if (params.length > 0) {
+        url += '?' + params.join('&');
+    }
+    
+    // Abrir en nueva pestaña para descargar
+    window.open(url, '_blank');
+}
+
+// Cargar al iniciar
+document.addEventListener('DOMContentLoaded', () => {
+    cargarActividades(1);
+});
+</script>
+
+{% endblock %}
