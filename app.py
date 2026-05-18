@@ -1,9 +1,11 @@
+import json
 from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from sqlalchemy import text
 from services.ruta_service import RutaService
+from services.xmpp_service import XMPPService
 from auth import admin_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
@@ -30,6 +32,8 @@ if DATABASE_URL.startswith("postgres://"):
 
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+xmpp_service = XMPPService()
 
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
@@ -122,6 +126,19 @@ class TransactionalLog(db.Model):
     def __repr__(self):
         return f'<Log {self.accion} - {self.usuario_id}>'
 
+class ChatMessage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    usuario = db.relationship('User', backref='chat_messages')
+    remitente = db.Column(db.String(50), nullable=False)
+    receptor = db.Column(db.String(50), nullable=False)
+    mensaje = db.Column(db.Text, nullable=False)
+    canal = db.Column(db.String(20), nullable=False, default='xmpp')
+    fecha_hora = db.Column(db.DateTime, default=db.func.now())
+
+    def __repr__(self):
+        return f'<ChatMessage {self.id} {self.remitente} -> {self.receptor}>'
+
 #====== FUNCIÓN AUXILIAR PARA REGISTRAR ACTIVIDADES =====
 def registrar_actividad(usuario_id, accion, descripcion='', tipo_resultado='exito', datos_adicionales=None):
     """
@@ -147,6 +164,24 @@ def registrar_actividad(usuario_id, accion, descripcion='', tipo_resultado='exit
     except Exception as e:
         print(f"❌ Error registrando log: {e}")
         db.session.rollback()
+
+
+def guardar_mensaje_chat(usuario_id, remitente, receptor, mensaje, canal='xmpp'):
+    try:
+        chat = ChatMessage(
+            usuario_id=usuario_id,
+            remitente=remitente,
+            receptor=receptor,
+            mensaje=mensaje,
+            canal=canal
+        )
+        db.session.add(chat)
+        db.session.commit()
+        return chat
+    except Exception as e:
+        print(f"❌ Error guardando mensaje de chat: {e}")
+        db.session.rollback()
+        return None
 
 # ===== HOME =====
 @app.route('/')
@@ -603,6 +638,7 @@ def api_rutas():
             'nombre': ruta.nombre,
             'origen': ruta.origen,
             'destino': ruta.destino,
+            'horario': ruta.horario,
             'tipo': ruta.tipo,
             'coordenadas_ida': ruta.coordenadas_ida,
             'coordenadas_vuelta': ruta.coordenadas_vuelta,
@@ -622,6 +658,101 @@ def api_rutas():
         )
     
     return jsonify(rutas_data)
+
+@app.route('/api/chat/history')
+def api_chat_history():
+    if not session.get('user_id'):
+        return jsonify({'error': 'No autorizado'}), 401
+
+    mensajes = ChatMessage.query.filter_by(usuario_id=session['user_id']).order_by(ChatMessage.fecha_hora.asc()).all()
+    mensajes_data = [
+        {
+            'id': mensaje.id,
+            'remitente': mensaje.remitente,
+            'receptor': mensaje.receptor,
+            'mensaje': mensaje.mensaje,
+            'fecha_hora': mensaje.fecha_hora.strftime('%Y-%m-%d %H:%M:%S')
+        }
+        for mensaje in mensajes
+    ]
+
+    return jsonify({'messages': mensajes_data})
+
+@app.route('/api/chat/send', methods=['POST'])
+def api_chat_send():
+    if not session.get('user_id'):
+        return jsonify({'error': 'No autorizado'}), 401
+
+    data = request.get_json() or {}
+    mensaje = (data.get('message') or '').strip()
+    if not mensaje:
+        return jsonify({'error': 'Mensaje vacío'}), 400
+
+    remitente = session.get('tipo', 'usuario')
+    guardar_mensaje_chat(session['user_id'], remitente, 'bot', mensaje)
+    if xmpp_service.is_configured():
+        xmpp_service.send_to_bot(remitente, mensaje)
+
+    respuesta = xmpp_service.generate_reply(mensaje, remitente)
+    guardar_mensaje_chat(session['user_id'], 'bot', remitente, respuesta)
+
+    registrar_actividad(
+        usuario_id=session['user_id'],
+        accion='chatbot',
+        descripcion=f'Interacción con chatbot desde perfil {remitente}',
+        datos_adicionales=json.dumps({'mensaje': mensaje})
+    )
+
+    return jsonify({'reply': respuesta})
+
+@app.route('/api/conductor/ubicacion', methods=['POST'])
+def api_conductor_ubicacion():
+    if session.get('tipo') != 'conductor':
+        return jsonify({'error': 'No autorizado'}), 403
+
+    data = request.get_json() or {}
+    lat = data.get('lat')
+    lng = data.get('lng')
+    if lat is None or lng is None:
+        return jsonify({'error': 'Datos inválidos'}), 400
+
+    ubicacion_bus['lat'] = lat
+    ubicacion_bus['lng'] = lng
+
+    registrar_actividad(
+        usuario_id=session['user_id'],
+        accion='ubicacion',
+        descripcion='Actualizó ubicación de conductor',
+        datos_adicionales=json.dumps({'lat': lat, 'lng': lng, 'ruta_id': data.get('ruta_id')})
+    )
+
+    return jsonify({'status': 'ok'})
+
+@app.route('/api/conductor/reporte', methods=['POST'])
+def api_conductor_reporte():
+    if session.get('tipo') != 'conductor':
+        return jsonify({'error': 'No autorizado'}), 403
+
+    data = request.get_json() or {}
+    tipo = data.get('tipo', 'incidencia')
+    descripcion = data.get('descripcion', '').strip()
+    if not descripcion:
+        return jsonify({'error': 'Descripción requerida'}), 400
+
+    registrar_actividad(
+        usuario_id=session['user_id'],
+        accion='reporte_incidencia',
+        descripcion=f'Tipo: {tipo} - {descripcion}',
+        datos_adicionales=json.dumps({'ruta_id': data.get('ruta_id')})
+    )
+
+    if xmpp_service.is_configured():
+        xmpp_service.notify_support(
+            'Reporte conductor',
+            f'Conductor ID {session.get("user_id")} ha reportado:\nTipo: {tipo}\nDescripción: {descripcion}'
+        )
+
+    return jsonify({'status': 'ok'})
 
 @app.route('/api/conductor/ruta/<int:ruta_id>')
 def api_conductor_ruta(ruta_id):
@@ -670,11 +801,15 @@ def api_registrar_actividad():
 @admin_required
 def nueva_ruta():
     if request.method == 'POST':
+        hora_inicio = request.form.get('hora_inicio', '').strip()
+        hora_fin = request.form.get('hora_fin', '').strip()
+        horario_texto = f"{hora_inicio} - {hora_fin}" if hora_inicio and hora_fin else hora_inicio or hora_fin
+
         ruta = Ruta(
             nombre=request.form['nombre'],
             origen=request.form['origen'],
             destino=request.form['destino'],
-            horario=request.form['horario'],
+            horario=horario_texto,
             tipo=request.form['tipo'],
             coordenadas_ida=request.form.get('coordenadas_ida'),
             coordenadas_vuelta=request.form.get('coordenadas_vuelta'),
@@ -734,10 +869,12 @@ def eliminar_ruta(id):
 def editar_ruta(id):
     ruta = Ruta.query.get_or_404(id)
     if request.method == 'POST':
+        hora_inicio = request.form.get('hora_inicio', '').strip()
+        hora_fin = request.form.get('hora_fin', '').strip()
         ruta.nombre = request.form['nombre']
         ruta.origen = request.form['origen']
         ruta.destino = request.form['destino']
-        ruta.horario = request.form['horario']
+        ruta.horario = f"{hora_inicio} - {hora_fin}" if hora_inicio and hora_fin else hora_inicio or hora_fin
         db.session.commit()
         return redirect(url_for('admin_panel'))
     return render_template('editar_ruta.html', ruta=ruta)

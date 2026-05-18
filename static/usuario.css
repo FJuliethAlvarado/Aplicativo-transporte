@@ -95,7 +95,7 @@ body {
 .sidebar, .notifications {
   position: fixed;
   top: 60px;
-  right: -320px;
+  right: 0;
   width: 320px;
   height: calc(100% - 60px);
   background: linear-gradient(135deg, rgba(15,23,42,0.98) 0%, rgba(30,41,59,0.96) 100%);
@@ -103,12 +103,16 @@ body {
   padding: 20px;
   overflow-y: auto;
   box-shadow: -5px 0 15px rgba(0,0,0,0.1);
-  transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 900;
+  transform: translateX(100%);
+  pointer-events: none;
 }
 
 .sidebar.active, .notifications.active {
   right: 0;
+  transform: translateX(0);
+  pointer-events: auto;
 }
 
 .sidebar h3, .notifications h3 {
@@ -118,6 +122,124 @@ body {
   border-bottom: 2px solid #0ea5e9;
   padding-bottom: 10px;
   margin-bottom: 15px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.panel-close {
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.panel-close:hover {
+  background: rgba(255,255,255,0.16);
+}
+
+.route-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 65px;
+  max-height: 45vh;
+  background: rgba(15, 23, 42, 0.98);
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  box-shadow: 0 -18px 32px rgba(0,0,0,0.35);
+  padding: 18px 18px 12px;
+  transform: translateY(100%);
+  transition: transform 0.28s ease;
+  z-index: 1001;
+  overflow-y: auto;
+}
+
+.route-sheet.active {
+  transform: translateY(0);
+}
+
+.route-sheet .panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.route-sheet h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #e2e8f0;
+}
+
+.route-item {
+  list-style: none;
+  margin-bottom: 10px;
+}
+
+.route-item button {
+  width: 100%;
+  text-align: left;
+  background: rgba(14,165,233,0.12);
+  border: 1px solid rgba(14,165,233,0.2);
+  color: #e2e8f0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.route-item button:hover {
+  background: rgba(14,165,233,0.22);
+  transform: translateY(-1px);
+}
+
+.info-card {
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(14, 165, 233, 0.18);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  color: #e2e8f0;
+  line-height: 1.5;
+}
+
+.info-card strong {
+  display: inline-block;
+  min-width: 110px;
+  color: #f8fafc;
+}
+
+.route-item {
+  list-style: none;
+  margin-bottom: 10px;
+}
+
+.route-item button {
+  width: 100%;
+  text-align: left;
+  background: rgba(14,165,233,0.12);
+  border: 1px solid rgba(14,165,233,0.2);
+  color: #e2e8f0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.route-item button:hover {
+  background: rgba(14,165,233,0.22);
+  transform: translateY(-1px);
 }
 
 /* ===== MAPA ===== */
@@ -259,7 +381,7 @@ body {
   justify-content: space-around;
   align-items: center;
   color: white;
-  z-index: 1000;
+  z-index: 1002;
   box-shadow: 0 -4px 16px rgba(0,0,0,0.25);
   border-top: 1px solid rgba(255,255,255,0.08);
 }
@@ -396,7 +518,7 @@ body {
   
   .sidebar, .notifications {
     width: 300px;
-    right: -300px;
+    right: 0;
   }
   
   .map-controls {
@@ -436,7 +558,7 @@ body {
   
   .sidebar, .notifications {
     width: 280px;
-    right: -280px;
+    right: 0;
     padding: 15px;
     top: 55px;
     height: calc(100% - 55px);
@@ -532,8 +654,8 @@ body {
   
   .sidebar, .notifications {
     width: 100%;
-    right: -100%;
-    left: 0;
+    right: 0;
+    left: auto;
     height: calc(100% - 50px);
     top: 50px;
     border-left: none;
@@ -706,6 +828,7 @@ body {
   
   .cards {
     bottom: 75px;
+    color: #0f172a;
   }
   
   .card {
@@ -738,6 +861,7 @@ body {
   
   .search input {
     font-size: 12px;
+    color: #cbd5e1;
   }
   
   .topbar i {

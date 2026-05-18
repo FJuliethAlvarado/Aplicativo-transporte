@@ -1,0 +1,29 @@
+<div class="chat-widget">
+    <button id="chatToggle" class="chat-toggle" aria-label="Abrir chat">
+        <i class="fa fa-comments"></i>
+    </button>
+
+    <div id="chatPanel" class="chat-container" aria-hidden="true">
+        <div class="chat-header">
+            <div>
+                <strong>Soporte XMPP</strong>
+                <div class="chat-subtitle">Perfil {{ session.get('tipo', 'usuario')|capitalize }}</div>
+            </div>
+            <button id="chatClose" class="chat-close" aria-label="Cerrar chat">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+
+        <div id="chatBody" class="chat-body"></div>
+
+        <form id="chatForm" class="chat-form">
+            <input id="chatInput" type="text" placeholder="Escribe tu pregunta..." autocomplete="off">
+            <button type="submit" aria-label="Enviar mensaje"><i class="fa fa-paper-plane"></i></button>
+        </form>
+    </div>
+</div>
+
+<script>
+window.CHAT_USER_ROLE = "{{ session.get('tipo', 'usuario') }}";
+window.CHAT_USER_ID = {{ session.get('user_id', 0) if session.get('user_id') else 0 }};
+</script>
