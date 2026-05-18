@@ -41,13 +41,21 @@
                 <small>Punto de llegada de la ruta</small>
             </div>
 
+            {% set horario_partes = ruta.horario.split(' - ') if ruta.horario else ['', ''] %}
             <!-- HORARIO -->
             <div class="form-group">
-                <label for="horario">
-                    <i class="fa fa-clock"></i> Horario
+                <label for="hora_inicio">
+                    <i class="fa fa-clock"></i> Hora de inicio
                 </label>
-                <input type="time" id="horario" name="horario" value="{{ ruta.horario }}" required>
-                <small>Horario de salida (formato 24 horas)</small>
+                <input type="time" id="hora_inicio" name="hora_inicio" value="{{ horario_partes[0] if horario_partes|length > 0 else '' }}" required>
+                <small>¿A qué hora comienza la ruta?</small>
+            </div>
+            <div class="form-group">
+                <label for="hora_fin">
+                    <i class="fa fa-clock"></i> Hora de finalización
+                </label>
+                <input type="time" id="hora_fin" name="hora_fin" value="{{ horario_partes[1] if horario_partes|length > 1 else '' }}" required>
+                <small>¿A qué hora termina la ruta?</small>
             </div>
 
             <!-- TIPO DE RUTA -->

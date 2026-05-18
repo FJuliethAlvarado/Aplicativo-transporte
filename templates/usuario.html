@@ -6,6 +6,7 @@
 <title>Mapa Usuario - Transporte App</title>
 
 <link rel="stylesheet" href="{{ url_for('static', filename='usuario.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
@@ -24,18 +25,35 @@
 
 <!-- PANEL LATERAL -->
 <div id="sidebar" class="sidebar">
-  <h3>Información de Ruta</h3>
-  <div id="proximos-buses"></div>
-  <div id="tiempos-paradas"></div>
-  <div id="tarifas"></div>
+  <div class="panel-header">
+    <h3>Información de Ruta</h3>
+    <button id="sidebarClose" class="panel-close" aria-label="Cerrar panel">×</button>
+  </div>
+  <div id="ruta-info">
+    <div id="proximos-buses"></div>
+    <div id="tiempos-paradas"></div>
+    <div id="tarifas"></div>
+  </div>
 </div>
 
 <!-- PANEL DE NOTIFICACIONES -->
 <div id="notifications" class="notifications">
-  <h3>Notificaciones</h3>
+  <div class="panel-header">
+    <h3>Notificaciones</h3>
+    <button id="notifClose" class="panel-close" aria-label="Cerrar notificaciones">×</button>
+  </div>
   <ul id="notif-list">
     <li>Bienvenido al sistema de transporte</li>
   </ul>
+</div>
+
+<!-- LISTA DE RUTAS EN SUBVENTANA INFERIOR -->
+<div id="route-sheet" class="route-sheet" aria-hidden="true">
+  <div class="panel-header">
+    <h3>Rutas disponibles</h3>
+    <button id="routeSheetClose" class="panel-close" aria-label="Cerrar lista de rutas">×</button>
+  </div>
+  <ul id="route-items"></ul>
 </div>
 
 <!-- MAPA -->
@@ -115,16 +133,15 @@ async function cargarRutas() {
             return;
         }
         
-        // Guardar todas las rutas
-        todasLasRutas = rutas.filter(r => r.coordenadas_ida && r.coordenadas_vuelta);
+        // Guardar todas las rutas y separar las que tienen coordenadas
+        todasLasRutas = rutas;
+        const rutasConCoordenadas = todasLasRutas.filter(r => r.coordenadas_ida && r.coordenadas_vuelta);
         
-        if (todasLasRutas.length === 0) {
-            mostrarNotificacion('Las rutas no tienen coordenadas', 'warning');
-            return;
+        if (rutasConCoordenadas.length === 0) {
+            mostrarNotificacion('Las rutas no tienen coordenadas para dibujar', 'warning');
+        } else {
+            dibujarTodasLasRutas(rutasConCoordenadas);
         }
-        
-        // Dibujar rutas
-        dibujarTodasLasRutas();
         
         mostrarNotificacion(`✅ ${todasLasRutas.length} rutas cargadas`, 'success');
         
@@ -135,7 +152,7 @@ async function cargarRutas() {
 }
 
 // ==================== DIBUJAR TODAS LAS RUTAS ====================
-function dibujarTodasLasRutas() {
+function dibujarTodasLasRutas(rutas) {
     // Limpiar rutas anteriores
     rutasVisibles.forEach(item => {
         if (item.linea) map.removeLayer(item.linea);
@@ -144,8 +161,8 @@ function dibujarTodasLasRutas() {
     });
     rutasVisibles = [];
     
-    // Dibujar cada ruta
-    todasLasRutas.forEach(ruta => {
+    // Dibujar cada ruta con coordenadas válidas
+    rutas.forEach(ruta => {
         dibujarRuta(ruta);
     });
 }
@@ -182,6 +199,8 @@ function dibujarRuta(ruta) {
             opacity: 0.8
         }).addTo(map);
         
+        const tarifaTexto = calcularTarifa(ruta);
+        
         // Popup con información y botón de simulación
         rutaLine.bindPopup(`
             <div style="min-width: 220px; font-family: Arial, sans-serif;">
@@ -189,6 +208,8 @@ function dibujarRuta(ruta) {
                 <hr style="margin: 5px 0;">
                 <b>📍 Origen:</b> ${origenTexto}<br>
                 <b>🏁 Destino:</b> ${destinoTexto}<br>
+                <b>⏰ Horario:</b> ${ruta.horario || 'No disponible'}<br>
+                <b>💲 Tarifa:</b> ${tarifaTexto}<br>
                 <b>📋 Tipo:</b> ${ruta.tipo === 'interna' ? 'Interna' : 'Intermunicipal'}<br>
                 <b>🔄 Sentido:</b> ${sentidoActual === 'ida' ? 'Ida' : 'Vuelta'}<br>
                 <b>⏱ Duración:</b> ${duracion} min<br>
@@ -359,20 +380,129 @@ function simularBus(rutaId) {
 }
 
 // ==================== MOSTRAR TODAS LAS RUTAS ====================
+function cerrarPaneles() {
+    const sidebar = document.getElementById('sidebar');
+    const notifications = document.getElementById('notifications');
+    const routeSheet = document.getElementById('route-sheet');
+    sidebar.classList.remove('active');
+    notifications.classList.remove('active');
+    routeSheet.classList.remove('active');
+}
+
 function mostrarTodasRutas() {
-    if (rutasVisibles.length === 0) {
+    if (todasLasRutas.length === 0) {
         mostrarNotificacion('No hay rutas para mostrar', 'warning');
         return;
     }
-    
-    const bounds = [];
-    rutasVisibles.forEach(item => {
-        item.coordenadas.forEach(coord => bounds.push(coord));
+
+    cerrarPaneles();
+    mostrarListaRutas();
+    document.getElementById('route-sheet').classList.add('active');
+}
+
+function mostrarListaRutas() {
+    const routeItems = document.getElementById('route-items');
+    if (!routeItems) return;
+
+    routeItems.innerHTML = '';
+
+    todasLasRutas.forEach(ruta => {
+        const tarifaTexto = calcularTarifa(ruta);
+        const item = document.createElement('li');
+        item.className = 'route-item';
+        item.innerHTML = `
+            <button type="button" onclick="seleccionarRuta(${ruta.id})">
+                <strong>${ruta.nombre}</strong><br>
+                <small>${ruta.origen} → ${ruta.destino}</small><br>
+                <small>Horario: ${ruta.horario || 'No disponible'}</small><br>
+                <small>Tarifa: ${tarifaTexto}</small>
+            </button>
+        `;
+        routeItems.appendChild(item);
     });
-    
-    if (bounds.length > 0) {
-        map.fitBounds(bounds);
-        mostrarNotificacion(`Mostrando ${rutasVisibles.length} rutas`, 'success');
+}
+
+function seleccionarRuta(rutaId) {
+    const ruta = todasLasRutas.find(r => r.id === rutaId);
+    if (!ruta) {
+        mostrarNotificacion('No se encontró la ruta seleccionada', 'error');
+        return;
+    }
+
+    const coordenadas = JSON.parse(ruta.coordenadas_ida || ruta.coordenadas_vuelta || '[]');
+    if (!coordenadas || coordenadas.length === 0) {
+        mostrarNotificacion('La ruta seleccionada no tiene coordenadas', 'warning');
+        return;
+    }
+
+    map.fitBounds(coordenadas);
+    mostrarInfoRuta(ruta);
+    cerrarPaneles();
+    document.getElementById('sidebar').classList.add('active');
+    mostrarNotificacion(`Enfocando ruta: ${ruta.nombre}`, 'success');
+}
+
+function calcularTarifa(ruta) {
+    const nombre = (ruta.nombre || '').toLowerCase();
+    const origen = (ruta.origen || '').toLowerCase();
+    const destino = (ruta.destino || '').toLowerCase();
+    const tipo = (ruta.tipo || '').toLowerCase();
+
+    if (nombre.includes('portal 80') || origen.includes('portal 80') || destino.includes('portal 80')) {
+        return '$8700';
+    }
+    if ((nombre.includes('cajicá') || nombre.includes('cajica') || origen.includes('cajicá') || origen.includes('cajica') || destino.includes('cajicá') || destino.includes('cajica')) &&
+        (nombre.includes('portal') || origen.includes('portal') || destino.includes('portal'))) {
+        return '$7000';
+    }
+    if (tipo === 'interna') {
+        return '$2500';
+    }
+    if ((nombre.includes('cajicá') || origen.includes('cajicá') || destino.includes('cajicá')) &&
+        (nombre.includes('chía') || origen.includes('chía') || destino.includes('chía') || nombre.includes('chia') || origen.includes('chia') || destino.includes('chia'))) {
+        return '$5000';
+    }
+    if ((nombre.includes('cajicá') || origen.includes('cajicá') || destino.includes('cajicá')) &&
+        (nombre.includes('fontanar') || origen.includes('fontanar') || destino.includes('fontanar'))) {
+        return '$3000';
+    }
+    if ((nombre.includes('bogotá') || nombre.includes('bogota') || origen.includes('bogotá') || origen.includes('bogota') || destino.includes('bogotá') || destino.includes('bogota')) &&
+        (nombre.includes('cc chia') || nombre.includes('cc chía') || origen.includes('cc chia') || origen.includes('cc chía') || destino.includes('cc chia') || destino.includes('cc chía') || nombre.includes('chia') || origen.includes('chia') || destino.includes('chia'))) {
+        return '$5800';
+    }
+
+    return 'Consultar tarifa';
+}
+
+function mostrarInfoRuta(ruta) {
+    const proximosBuses = document.getElementById('proximos-buses');
+    const tiemposParadas = document.getElementById('tiempos-paradas');
+    const tarifas = document.getElementById('tarifas');
+    const tarifaTexto = calcularTarifa(ruta);
+
+    if (proximosBuses) {
+        proximosBuses.innerHTML = `
+            <div class="info-card">
+                <strong>Ruta:</strong> ${ruta.nombre}<br>
+                <strong>Horario:</strong> ${ruta.horario || 'No disponible'}
+            </div>
+        `;
+    }
+    if (tiemposParadas) {
+        tiemposParadas.innerHTML = `
+            <div class="info-card">
+                <strong>Origen:</strong> ${ruta.origen}<br>
+                <strong>Destino:</strong> ${ruta.destino}<br>
+                <strong>Tipo:</strong> ${ruta.tipo === 'interna' ? 'Interna' : 'Intermunicipal'}
+            </div>
+        `;
+    }
+    if (tarifas) {
+        tarifas.innerHTML = `
+            <div class="info-card">
+                <strong>Tarifa sugerida:</strong> ${tarifaTexto}
+            </div>
+        `;
     }
 }
 
@@ -426,26 +556,46 @@ document.getElementById("menu-btn").addEventListener("click", (e) => {
     e.stopPropagation();
     document.getElementById("sidebar").classList.toggle("active");
     document.getElementById("notifications").classList.remove("active");
+    document.getElementById("route-sheet").classList.remove("active");
 });
 
 document.getElementById("notif-btn").addEventListener("click", (e) => {
     e.stopPropagation();
     document.getElementById("notifications").classList.toggle("active");
     document.getElementById("sidebar").classList.remove("active");
+    document.getElementById("route-sheet").classList.remove("active");
+});
+
+document.getElementById("sidebarClose").addEventListener("click", (e) => {
+    e.stopPropagation();
+    cerrarPaneles();
+});
+
+document.getElementById("notifClose").addEventListener("click", (e) => {
+    e.stopPropagation();
+    cerrarPaneles();
+});
+
+document.getElementById("routeSheetClose").addEventListener("click", (e) => {
+    e.stopPropagation();
+    cerrarPaneles();
 });
 
 // Cerrar paneles al hacer clic en el mapa o fuera
 document.addEventListener("click", (e) => {
     const sidebar = document.getElementById("sidebar");
     const notifications = document.getElementById("notifications");
+    const routeSheet = document.getElementById("route-sheet");
     const menuBtn = document.getElementById("menu-btn");
     const notifBtn = document.getElementById("notif-btn");
+    const bottomNav = document.querySelector('.bottom-nav');
     
     // Si el clic está fuera de los paneles y los botones
-    if (!sidebar.contains(e.target) && !notifications.contains(e.target) && 
-        !menuBtn.contains(e.target) && !notifBtn.contains(e.target)) {
+    if (!sidebar.contains(e.target) && !notifications.contains(e.target) && !routeSheet.contains(e.target) &&
+        !menuBtn.contains(e.target) && !notifBtn.contains(e.target) && !(bottomNav && bottomNav.contains(e.target))) {
         sidebar.classList.remove("active");
         notifications.classList.remove("active");
+        routeSheet.classList.remove("active");
     }
 });
 
@@ -453,6 +603,7 @@ document.addEventListener("click", (e) => {
 map.on('click', () => {
     document.getElementById("sidebar").classList.remove("active");
     document.getElementById("notifications").classList.remove("active");
+    document.getElementById("route-sheet").classList.remove("active");
 });
 
 // Bottom nav items
@@ -535,5 +686,7 @@ setInterval(obtenerUbicacionBus, 3000);
 
 </script>
 
+    {% include 'chat_widget.html' %}
+    <script src="{{ url_for('static', filename='chat.js') }}"></script>
 </body>
 </html>

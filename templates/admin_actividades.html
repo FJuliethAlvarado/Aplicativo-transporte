@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="activities-container">
-    <h1>📊 Registro de Actividades Transaccionales</h1>
+    <h1>Registro de Actividades Transaccionales</h1>
     
     <!-- FILTROS -->
     <div class="filters-section">
@@ -32,8 +32,8 @@
             <label for="resultadoFilter">Filtrar por Resultado:</label>
             <select id="resultadoFilter">
                 <option value="">-- Todos --</option>
-                <option value="exito">✅ Éxito</option>
-                <option value="fallo">❌ Fallo</option>
+                <option value="exito">Éxito</option>
+                <option value="fallo">Fallo</option>
             </select>
         </div>
         
@@ -179,14 +179,17 @@
 .table-section {
     background: rgba(15, 23, 42, 0.95);
     border-radius: 12px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     border: 1px solid rgba(255,255,255,0.08);
     margin-bottom: 20px;
 }
 
 .table {
     width: 100%;
+    min-width: 860px;
     border-collapse: collapse;
+    display: table;
 }
 
 .table thead {
@@ -304,7 +307,7 @@ async function cargarActividades(pagina = 1) {
             data.logs.forEach(log => {
                 const row = document.createElement('tr');
                 const statusClass = log.tipo_resultado === 'exito' ? 'status-exito' : 'status-fallo';
-                const statusText = log.tipo_resultado === 'exito' ? '✅ Éxito' : '❌ Fallo';
+                const statusText = log.tipo_resultado === 'exito' ? 'Éxito' : 'Fallo';
                 
                 row.innerHTML = `
                     <td>${log.id}</td>

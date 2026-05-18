@@ -26,9 +26,15 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="horario">Horario:</label>
-                    <input type="time" id="horario" name="horario" required>
-                    <small>Formato: HH:MM (24 horas)</small>
+                    <label for="hora_inicio">Hora de inicio:</label>
+                    <input type="time" id="hora_inicio" name="hora_inicio" required>
+                    <small>¿A qué hora comienza la ruta?</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="hora_fin">Hora de finalización:</label>
+                    <input type="time" id="hora_fin" name="hora_fin" required>
+                    <small>¿A qué hora termina la ruta?</small>
                 </div>
 
                 <div class="form-group">
@@ -348,7 +354,8 @@ function initMap() {
 function crearRutaSimple() {
     const nombre = document.getElementById('nombre').value;
     const tipo = document.getElementById('tipo').value;
-    const horario = document.getElementById('horario').value;
+    const horaInicio = document.getElementById('hora_inicio').value;
+    const horaFin = document.getElementById('hora_fin').value;
     
     if (!nombre) {
         alert('Por favor ingresa el nombre de la ruta');
@@ -358,8 +365,8 @@ function crearRutaSimple() {
         alert('Por favor selecciona el tipo de ruta');
         return;
     }
-    if (!horario) {
-        alert('Por favor ingresa el horario');
+    if (!horaInicio || !horaFin) {
+        alert('Por favor ingresa la hora de inicio y la hora de finalización');
         return;
     }
     
