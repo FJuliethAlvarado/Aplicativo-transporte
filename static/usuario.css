@@ -650,6 +650,7 @@ body {
   
   .search input {
     font-size: 12px;
+    color: #e2e8f0;
   }
   
   .sidebar, .notifications {
