@@ -22,7 +22,6 @@ body {
     color: #e2e8f0;
 }
 
-/* Top Bar */
 .topbar {
     background: rgba(14, 165, 233, 0.96);
     color: white;
@@ -46,23 +45,32 @@ body {
 }
 
 .topbar .status {
-    background: #22c55e;
+    background: #ef4444;
     padding: 5px 12px;
     border-radius: 20px;
     font-size: 12px;
     display: flex;
     align-items: center;
     gap: 6px;
+    cursor: pointer;
+    transition: all 0.3s;
 }
 
-/* Mapa */
+.topbar .status.online {
+    background: #22c55e;
+}
+
+.topbar .status:hover {
+    transform: scale(1.05);
+    opacity: 0.9;
+}
+
 #map {
     width: 100%;
     height: calc(100vh - 120px);
     margin-top: 60px;
 }
 
-/* Panel inferior */
 .bottom-panel {
     position: fixed;
     bottom: 0;
@@ -88,8 +96,7 @@ body {
     color: #e2e8f0;
 }
 
-.panel-item i,
-.panel-item span {
+.panel-item i, .panel-item span {
     color: #e2e8f0;
 }
 
@@ -112,7 +119,6 @@ body {
     color: #0ea5e9;
 }
 
-/* Tarjeta de información */
 .info-card {
     position: fixed;
     top: 70px;
@@ -145,7 +151,6 @@ body {
     color: #ffffff;
 }
 
-/* Controles del mapa */
 .map-controls {
     position: fixed;
     bottom: 100px;
@@ -174,7 +179,6 @@ body {
     transform: scale(1.05);
 }
 
-/* Modal de reporte */
 .modal {
     display: none;
     position: fixed;
@@ -206,8 +210,7 @@ body {
     margin-bottom: 15px;
 }
 
-.modal-content select, 
-.modal-content textarea {
+.modal-content select, .modal-content textarea {
     width: 100%;
     padding: 10px;
     margin: 10px 0;
@@ -241,7 +244,6 @@ body {
     color: #333;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
     .info-card {
         top: 70px;
@@ -250,17 +252,11 @@ body {
         min-width: 180px;
         font-size: 12px;
     }
-    
     .topbar h2 {
         font-size: 1rem;
     }
-    
-    .status span {
-        display: none;
-    }
 }
 
-/* Animación del bus */
 .bus-marker {
     animation: pulse 1s infinite;
 }
@@ -270,27 +266,32 @@ body {
     50% { transform: scale(1.1); }
     100% { transform: scale(1); }
 }
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
 </style>
 </head>
 
 <body>
 
-<!-- TOP BAR -->
 <div class="topbar">
-    <h2>
-        <i class="fa fa-bus"></i>
-        Panel Conductor
-    </h2>
-    <div class="status">
-        <i class="fa fa-circle" style="font-size: 10px; color: #22c55e;"></i>
-        <span>En servicio</span>
+    <h2><i class="fa fa-bus"></i> Panel Conductor</h2>
+    <div class="status offline" id="statusBtn" onclick="toggleOnlineStatus()">
+        <i class="fa fa-circle" style="font-size: 10px;"></i>
+        <span id="statusText">Offline</span>
     </div>
 </div>
 
-<!-- MAPA -->
 <div id="map"></div>
 
-<!-- TARJETA DE INFORMACIÓN -->
 <div class="info-card" id="infoCard">
     <h4><i class="fa fa-route"></i> Ruta Asignada</h4>
     <p id="rutaNombre">Cargando...</p>
@@ -298,39 +299,30 @@ body {
     <div class="badge" id="sentidoBadge">Sentido: Ida</div>
 </div>
 
-<!-- CONTROLES DEL MAPA -->
 <div class="map-controls">
     <button onclick="zoomIn()"><i class="fa fa-plus"></i></button>
     <button onclick="zoomOut()"><i class="fa fa-minus"></i></button>
-    <button onclick="locate()"><i class="fa fa-location-arrow"></i></button>
     <button onclick="centrarRuta()"><i class="fa fa-route"></i></button>
 </div>
 
-<!-- PANEL INFERIOR -->
 <div class="bottom-panel">
     <div class="panel-item active" onclick="cambiarVista('ruta')">
-        <i class="fa fa-road"></i>
-        <span>Mi Ruta</span>
+        <i class="fa fa-road"></i><span>Mi Ruta</span>
     </div>
     <div class="panel-item" onclick="cambiarVista('reporte')">
-        <i class="fa fa-flag"></i>
-        <span>Reportar</span>
+        <i class="fa fa-flag"></i><span>Reportar</span>
     </div>
     <div class="panel-item" onclick="alternarSentido()">
-        <i class="fa fa-exchange-alt"></i>
-        <span>Sentido</span>
+        <i class="fa fa-exchange-alt"></i><span>Sentido</span>
     </div>
     <div class="panel-item" onclick="window.location.href='{{ url_for('perfil') }}'">
-        <i class="fa fa-user"></i>
-        <span>Perfil</span>
+        <i class="fa fa-user"></i><span>Perfil</span>
     </div>
     <div class="panel-item" onclick="cerrarSesion()">
-        <i class="fa fa-sign-out-alt"></i>
-        <span>Salir</span>
+        <i class="fa fa-sign-out-alt"></i><span>Salir</span>
     </div>
 </div>
 
-<!-- MODAL DE REPORTE -->
 <div id="reportModal" class="modal">
     <div class="modal-content">
         <h3><i class="fa fa-flag"></i> Reportar Incidencia</h3>
@@ -354,52 +346,136 @@ body {
 var map;
 var rutaData = null;
 var busMarker = null;
-var intervaloActualizacion = null;
+var intervaloSimulacion = null;
 var sentidoActual = 'ida';
-var ubicacionActual = null;
+var onlineStatus = false;
+var indiceActual = 0;
+var direccion = 1;
+var coordenadasActuales = [];
 
-// Obtener datos del conductor desde el servidor
 var conductorId = {{ conductor.id if conductor else 0 }};
 var rutaAsignadaId = {{ conductor.ruta_asignada_id if conductor and conductor.ruta_asignada_id else 'null' }};
 
-// Inicializar mapa (centrado en Cajicá)
+// ==================== ONLINE/OFFLINE CON SIMULACIÓN ====================
+function toggleOnlineStatus() {
+    onlineStatus = !onlineStatus;
+    const statusDiv = document.getElementById('statusBtn');
+    const statusText = document.getElementById('statusText');
+    
+    if (onlineStatus) {
+        statusDiv.classList.remove('offline');
+        statusDiv.classList.add('online');
+        statusText.innerText = 'Online';
+        iniciarSimulacionBus();
+        mostrarNotificacion('✅ Bus ONLINE - Iniciando recorrido simulado', 'success');
+    } else {
+        statusDiv.classList.remove('online');
+        statusDiv.classList.add('offline');
+        statusText.innerText = 'Offline';
+        detenerSimulacionBus();
+        mostrarNotificacion('⛔ Bus OFFLINE - Recorrido detenido', 'warning');
+    }
+}
+
+// ==================== ONLINE/OFFLINE CON SIMULACIÓN USANDO bus.png ====================
+function iniciarSimulacionBus() {
+    if (intervaloSimulacion) {
+        clearInterval(intervaloSimulacion);
+        intervaloSimulacion = null;
+    }
+    
+    if (!coordenadasActuales || coordenadasActuales.length === 0) {
+        console.log('No hay coordenadas');
+        mostrarNotificacion('No hay coordenadas de ruta', 'error');
+        return;
+    }
+    
+    indiceActual = 0;
+    direccion = 1;
+    
+    // Usar la imagen bus.png como icono
+    var busIcon = L.icon({
+        iconUrl: '{{ url_for("static", filename="icons/bus.png") }}',
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+        popupAnchor: [0, -20]
+    });
+    
+    if (busMarker) {
+        map.removeLayer(busMarker);
+    }
+    
+    busMarker = L.marker(coordenadasActuales[0], {icon: busIcon}).addTo(map);
+    busMarker.bindPopup(`
+        <b>Bus en servicio</b><br>
+        <b>Ruta:</b> ${rutaData ? rutaData.nombre : 'Cargando...'}<br>
+        <b>Estado:</b> 🟢 Activo
+    `);
+    
+    map.setView(coordenadasActuales[0], 15);
+    
+    intervaloSimulacion = setInterval(() => {
+        if (!onlineStatus) return;
+        
+        indiceActual += direccion;
+        
+        if (indiceActual >= coordenadasActuales.length - 1) {
+            indiceActual = coordenadasActuales.length - 1;
+            direccion = -1;
+            mostrarNotificacion('📍 Llegando al destino - Iniciando regreso', 'info');
+        } else if (indiceActual <= 0) {
+            indiceActual = 0;
+            direccion = 1;
+            mostrarNotificacion('📍 Regresando al origen', 'info');
+        }
+        
+        const nuevaPos = coordenadasActuales[indiceActual];
+        busMarker.setLatLng(nuevaPos);
+        
+        const progreso = Math.round((indiceActual / coordenadasActuales.length) * 100);
+        busMarker.bindPopup(`
+            <b>🚌 Bus en movimiento</b><br>
+            <b>Ruta:</b> ${rutaData ? rutaData.nombre : 'Cargando...'}<br>
+            <b>Sentido:</b> ${sentidoActual === 'ida' ? 'Ida →' : 'Vuelta ←'}<br>
+            <b>Progreso:</b> ${progreso}%<br>
+            <b>Ubicación:</b> ${nuevaPos.lat.toFixed(5)}, ${nuevaPos.lng.toFixed(5)}
+        `).openPopup();
+        
+        map.panTo(nuevaPos);
+        enviarUbicacionServidor(nuevaPos.lat, nuevaPos.lng);
+        
+    }, 2000);
+}
+
+function detenerSimulacionBus() {
+    if (intervaloSimulacion) {
+        clearInterval(intervaloSimulacion);
+        intervaloSimulacion = null;
+    }
+    if (busMarker) {
+        map.removeLayer(busMarker);
+        busMarker = null;
+    }
+}
+
 function initMap() {
     map = L.map('map').setView([4.917, -74.028], 14);
-    
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
     
-    // Cargar SOLO la ruta asignada al conductor
     if (rutaAsignadaId) {
         cargarRutaAsignada();
     } else {
         document.getElementById('rutaNombre').innerHTML = '🚫 Sin ruta asignada';
-        document.getElementById('rutaInfo').innerHTML = 'Contacta al administrador para que te asigne una ruta';
-        mostrarNotificacion('No tienes una ruta asignada. Contacta al administrador.', 'warning');
-        
-        // Mostrar mensaje en el mapa
-        L.popup()
-            .setLatLng([4.917, -74.028])
-            .setContent(`
-                <div style="text-align: center; padding: 10px;">
-                    <i class="fa fa-bus" style="font-size: 40px; color: #ccc;"></i>
-                    <h3>Sin ruta asignada</h3>
-                    <p>Contacta al administrador para que te asigne una ruta.</p>
-                </div>
-            `)
-            .openOn(map);
+        document.getElementById('rutaInfo').innerHTML = 'Contacta al administrador';
+        mostrarNotificacion('No tienes una ruta asignada', 'warning');
     }
-    
-    // Iniciar actualización de ubicación
-    iniciarSeguimientoUbicacion();
 }
 
-// ==================== CARGAR SOLO LA RUTA ASIGNADA ====================
 async function cargarRutaAsignada() {
     try {
-        mostrarNotificacion('Cargando tu ruta asignada...', 'info');
-        
+        mostrarNotificacion('Cargando tu ruta...', 'info');
         const response = await fetch(`/api/conductor/ruta/${rutaAsignadaId}`);
         const data = await response.json();
         
@@ -407,18 +483,16 @@ async function cargarRutaAsignada() {
             rutaData = data.ruta;
             actualizarInfoRuta();
             dibujarRuta();
-            mostrarNotificacion(`✅ Ruta: ${rutaData.nombre} cargada correctamente`, 'success');
+            mostrarNotificacion(`✅ Ruta: ${rutaData.nombre} cargada`, 'success');
         } else {
-            mostrarNotificacion('Error al cargar tu ruta asignada', 'error');
-            document.getElementById('rutaNombre').innerHTML = '❌ Error al cargar ruta';
+            mostrarNotificacion('Error al cargar la ruta', 'error');
         }
     } catch (error) {
         console.error('Error:', error);
-        mostrarNotificacion('Error de conexión al cargar la ruta', 'error');
+        mostrarNotificacion('Error de conexión', 'error');
     }
 }
 
-// ==================== ACTUALIZAR INFO DE RUTA ====================
 function actualizarInfoRuta() {
     const nombreElem = document.getElementById('rutaNombre');
     const infoElem = document.getElementById('rutaInfo');
@@ -446,148 +520,75 @@ function actualizarInfoRuta() {
     }
 }
 
-// ==================== DIBUJAR RUTA EN EL MAPA ====================
 function dibujarRuta() {
     if (!rutaData) return;
     
-    // Limpiar rutas anteriores
     if (window.rutaLinea) map.removeLayer(window.rutaLinea);
     if (window.origenMarker) map.removeLayer(window.origenMarker);
     if (window.destinoMarker) map.removeLayer(window.destinoMarker);
     
-    // Obtener coordenadas según sentido
-    let coordenadas;
-    if (sentidoActual === 'ida') {
-        coordenadas = JSON.parse(rutaData.coordenadas_ida);
-    } else {
-        coordenadas = JSON.parse(rutaData.coordenadas_vuelta);
+    try {
+        if (sentidoActual === 'ida') {
+            coordenadasActuales = JSON.parse(rutaData.coordenadas_ida);
+        } else {
+            coordenadasActuales = JSON.parse(rutaData.coordenadas_vuelta);
+        }
+    } catch(e) {
+        console.error('Error parseando coordenadas:', e);
+        return;
     }
     
-    if (!coordenadas || coordenadas.length === 0) {
+    if (!coordenadasActuales || coordenadasActuales.length === 0) {
         mostrarNotificacion('La ruta no tiene coordenadas válidas', 'warning');
         return;
     }
     
-    // Dibujar línea de la ruta
     const lineColor = rutaData.tipo === 'intermunicipal' ? '#ef4444' : '#0ea5e9';
-    window.rutaLinea = L.polyline(coordenadas, {
+    window.rutaLinea = L.polyline(coordenadasActuales, {
         color: lineColor,
         weight: 6,
-        opacity: 0.9,
-        smoothFactor: 1
+        opacity: 0.9
     }).addTo(map);
     
-    // Marcar origen (verde)
     const origenIcon = L.divIcon({
-        html: '<i class="fa fa-location-arrow" style="font-size: 32px; color: #16a34a; transform: rotate(0deg); text-shadow: 0 0 3px white;"></i>',
-        iconSize: [32, 32],
-        className: 'origen-icon'
+        html: '<i class="fa fa-location-arrow" style="font-size: 32px; color: #16a34a;"></i>',
+        iconSize: [32, 32]
     });
     
-    // Marcar destino (bandera a cuadros)
     const destinoIcon = L.divIcon({
-        html: '<i class="fa fa-flag-checkered" style="font-size: 32px; color: #dc2626; text-shadow: 0 0 3px white;"></i>',
-        iconSize: [32, 32],
-        className: 'destino-icon'
+        html: '<i class="fa fa-flag-checkered" style="font-size: 32px; color: #dc2626;"></i>',
+        iconSize: [32, 32]
     });
     
-    window.origenMarker = L.marker(coordenadas[0], {icon: origenIcon}).addTo(map)
+    window.origenMarker = L.marker(coordenadasActuales[0], {icon: origenIcon}).addTo(map)
         .bindPopup(`<b>📍 ORIGEN</b><br>${sentidoActual === 'ida' ? rutaData.origen : rutaData.destino}`);
     
-    window.destinoMarker = L.marker(coordenadas[coordenadas.length - 1], {icon: destinoIcon}).addTo(map)
+    window.destinoMarker = L.marker(coordenadasActuales[coordenadasActuales.length - 1], {icon: destinoIcon}).addTo(map)
         .bindPopup(`<b>🏁 DESTINO</b><br>${sentidoActual === 'ida' ? rutaData.destino : rutaData.origen}`);
     
-    // Ajustar vista para ver toda la ruta
     map.fitBounds(window.rutaLinea.getBounds());
 }
 
-// ==================== ALTERNAR SENTIDO ====================
 function alternarSentido() {
     sentidoActual = sentidoActual === 'ida' ? 'vuelta' : 'ida';
-    actualizarInfoRuta();
+    const estabaOnline = onlineStatus;
+    
+    if (estabaOnline) {
+        detenerSimulacionBus();
+    }
+    
     dibujarRuta();
+    actualizarInfoRuta();
     
-    // ❌ REGISTRAR EVENTO AL SERVIDOR
-    fetch('/api/log-event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            accion: 'alternar_sentido',
-            descripcion: `Cambió a sentido: ${sentidoActual === 'ida' ? 'Ida' : 'Vuelta'}`
-        })
-    }).catch(e => console.error('Error registrando evento:', e));
-    
-    mostrarNotificacion(`Cambiando a sentido: ${sentidoActual === 'ida' ? 'Ida' : 'Vuelta'}`, 'info');
-}
-
-// ==================== SEGUIMIENTO DE UBICACIÓN ====================
-function iniciarSeguimientoUbicacion() {
-    if (navigator.geolocation) {
-        // Obtener ubicación actual
-        navigator.geolocation.getCurrentPosition(actualizarUbicacion, errorUbicacion);
-        
-        // Seguimiento continuo cada 10 segundos
-        intervaloActualizacion = setInterval(() => {
-            navigator.geolocation.getCurrentPosition(actualizarUbicacion, errorUbicacion);
-        }, 10000);
-    } else {
-        mostrarNotificacion('Tu navegador no soporta geolocalización', 'error');
-    }
-}
-
-function actualizarUbicacion(position) {
-    const lat = position.coords.latitude;
-    const lng = position.coords.longitude;
-    ubicacionActual = { lat, lng };
-    
-    // Actualizar marcador del bus
-    if (busMarker) {
-        map.removeLayer(busMarker);
+    if (estabaOnline) {
+        iniciarSimulacionBus();
     }
     
-    const busIcon = L.divIcon({
-        html: '<i class="fa fa-bus" style="font-size: 38px; color: #0ea5e9; animation: pulse 1s infinite;"></i>',
-        iconSize: [38, 38],
-        className: 'bus-marker'
-    });
-    
-    busMarker = L.marker([lat, lng], {icon: busIcon}).addTo(map);
-    busMarker.bindPopup(`
-        <b>🚌 Tu ubicación actual</b><br>
-        <b>Ruta:</b> ${rutaData ? rutaData.nombre : 'Sin ruta'}<br>
-        <b>Lat:</b> ${lat.toFixed(5)}<br>
-        <b>Lng:</b> ${lng.toFixed(5)}<br>
-        <b>Sentido:</b> ${sentidoActual === 'ida' ? 'Ida →' : 'Vuelta ←'}
-    `);
-    
-    // ✅ REGISTRAR EVENTO DE GEOLOCALIZACIÓN (ACTUALIZACIÓN)
-    fetch('/api/log-event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            accion: 'geolocalización',
-            descripcion: `Actualización de ubicación: ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
-            datos_adicionales: JSON.stringify({ lat, lng, ruta_id: rutaData?.id })
-        })
-    }).catch(e => console.error('Error registrando evento:', e));
-    
-    // Enviar ubicación al servidor
-    enviarUbicacionServidor(lat, lng);
+    mostrarNotificacion(`Sentido cambiado a: ${sentidoActual === 'ida' ? 'Ida' : 'Vuelta'}`, 'info');
 }
 
-function errorUbicacion(error) {
-    console.error('Error de geolocalización:', error);
-    if (error.code === 1) {
-        mostrarNotificacion('Por favor permite el acceso a tu ubicación', 'warning');
-    } else {
-        mostrarNotificacion('No se pudo obtener tu ubicación', 'warning');
-    }
-}
-
-// ==================== ENVIAR UBICACIÓN AL SERVIDOR ====================
 async function enviarUbicacionServidor(lat, lng) {
-    if (!rutaAsignadaId) return;
-    
+    if (!rutaAsignadaId || !onlineStatus) return;
     try {
         await fetch('/api/conductor/ubicacion', {
             method: 'POST',
@@ -597,49 +598,29 @@ async function enviarUbicacionServidor(lat, lng) {
                 lat: lat,
                 lng: lng,
                 ruta_id: rutaAsignadaId,
-                sentido: sentidoActual
+                sentido: sentidoActual,
+                online: onlineStatus
             })
         });
     } catch (error) {
-        console.error('Error enviando ubicación:', error);
+        console.error('Error:', error);
     }
 }
 
-// ==================== FUNCIONES DEL MAPA ====================
 function zoomIn() { map.zoomIn(); }
 function zoomOut() { map.zoomOut(); }
-
-function locate() { 
-    if (ubicacionActual) {
-        map.setView([ubicacionActual.lat, ubicacionActual.lng], 16);
-        mostrarNotificacion('Centrando en tu ubicación', 'info');
-    } else {
-        map.locate({setView: true, maxZoom: 16});
-    }
-    
-    // ✅ REGISTRAR EVENTO DE GEOLOCALIZACIÓN
-    fetch('/api/log-event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            accion: 'geolocalización',
-            descripcion: 'Solicitó obtener su ubicación actual'
-        })
-    }).catch(e => console.error('Error registrando evento:', e));
-}
 
 function centrarRuta() {
     if (window.rutaLinea) {
         map.fitBounds(window.rutaLinea.getBounds());
-        mostrarNotificacion('Centrando en tu ruta', 'info');
+        mostrarNotificacion('Centrando en la ruta', 'info');
     }
 }
 
-// ==================== REPORTAR INCIDENCIA ====================
 function cambiarVista(vista) {
     if (vista === 'reporte') {
         if (!rutaAsignadaId) {
-            mostrarNotificacion('No tienes una ruta asignada para reportar', 'warning');
+            mostrarNotificacion('No tienes una ruta asignada', 'warning');
             return;
         }
         document.getElementById('reportModal').classList.add('active');
@@ -655,7 +636,7 @@ async function enviarReporte() {
     const descripcion = document.getElementById('descripcionReporte').value;
     
     if (!descripcion) {
-        mostrarNotificacion('Por favor describe la incidencia', 'warning');
+        mostrarNotificacion('Describe la incidencia', 'warning');
         return;
     }
     
@@ -667,17 +648,16 @@ async function enviarReporte() {
                 conductor_id: conductorId,
                 tipo: tipo,
                 descripcion: descripcion,
-                ruta_id: rutaAsignadaId,
-                ubicacion: ubicacionActual
+                ruta_id: rutaAsignadaId
             })
         });
         
         if (response.ok) {
-            mostrarNotificacion('Reporte enviado exitosamente', 'success');
+            mostrarNotificacion('Reporte enviado', 'success');
             cerrarModal();
             document.getElementById('descripcionReporte').value = '';
         } else {
-            mostrarNotificacion('Error al enviar el reporte', 'error');
+            mostrarNotificacion('Error al enviar', 'error');
         }
     } catch (error) {
         console.error('Error:', error);
@@ -685,7 +665,6 @@ async function enviarReporte() {
     }
 }
 
-// ==================== NOTIFICACIONES ====================
 function mostrarNotificacion(mensaje, tipo = 'info') {
     const notif = document.createElement('div');
     const color = tipo === 'success' ? '#22c55e' : tipo === 'error' ? '#ef4444' : '#0ea5e9';
@@ -703,27 +682,18 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
         animation: slideUp 0.3s ease;
         box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         white-space: nowrap;
-        font-weight: 500;
     `;
     notif.textContent = mensaje;
     document.body.appendChild(notif);
-    
-    setTimeout(() => {
-        notif.remove();
-    }, 3000);
+    setTimeout(() => notif.remove(), 3000);
 }
 
-// ==================== CERRAR SESIÓN ====================
 function cerrarSesion() {
-    if (intervaloActualizacion) {
-        clearInterval(intervaloActualizacion);
-    }
+    detenerSimulacionBus();
     window.location.href = "/logout";
 }
 
-// ==================== INICIALIZAR ====================
 document.addEventListener('DOMContentLoaded', initMap);
 </script>
-
 </body>
 </html>
