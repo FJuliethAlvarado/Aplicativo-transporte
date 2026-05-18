@@ -102,6 +102,14 @@
                     <li><i class="fa fa-exchange-alt"></i> La línea <span style="color: #0ea5e9;">azul</span> es la <strong>IDA</strong>, la línea <span style="color: #7c3aed;">morada punteada</span> es la <strong>VUELTA</strong></li>
                     <li><i class="fa fa-arrows-alt"></i> Puedes <strong>arrastrar</strong> los marcadores para ajustar los puntos</li>
                 </ul>
+                <div style="margin-top:10px; display:flex; gap:8px;">
+                    <button id="btnEditarRuta" class="btn btn-secondary" type="button" disabled>
+                        <i class="fa fa-edit"></i> Editar ruta
+                    </button>
+                    <button id="btnRecalcRuta" class="btn btn-primary" type="button" disabled>
+                        <i class="fa fa-sync-alt"></i> Recalcular con puntos actuales
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -312,6 +320,10 @@ var rutaLinea = null;
 var rutaVueltaLinea = null;
 var origenCoords = null;
 var destinoCoords = null;
+var waypoints = []; // puntos intermedios editables
+var waypointMarkers = [];
+var editMode = false;
+
 
 // Inicializar mapa (centrado en Cajicá)
 function initMap() {
@@ -351,13 +363,25 @@ async function setOrigen(latlng) {
     origenMarker = L.marker(latlng, {
         draggable: true
     }).addTo(map);
-    
+
     origenMarker.setIcon(L.divIcon({
         html: '<i class="fa fa-map-marker" style="font-size: 32px; color: green; text-shadow: 0 0 3px white;"></i>',
         iconSize: [32, 32],
         className: 'custom-marker'
     }));
-    
+
+    // Asegurar que el dragging esté activado y cambiar cursor
+    if (origenMarker.dragging) origenMarker.dragging.enable();
+    const origenIcon = origenMarker.getElement && origenMarker.getElement();
+    if (origenIcon) origenIcon.style.cursor = 'move';
+
+    // Mostrar coordenadas mientras se arrastra (sin llamar a reverse geocode)
+    origenMarker.on('drag', function(e) {
+        const p = e.target.getLatLng();
+        document.getElementById('origen-label').innerHTML = `<i class="fa fa-map-marker" style="color: green;"></i> Moviendo: ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
+        document.getElementById('origen').value = `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
+    });
+
     origenMarker.on('dragend', function(e) {
         origenCoords = e.target.getLatLng();
         actualizarRuta();
@@ -384,13 +408,25 @@ async function setDestino(latlng) {
     destinoMarker = L.marker(latlng, {
         draggable: true
     }).addTo(map);
-    
+
     destinoMarker.setIcon(L.divIcon({
         html: '<i class="fa fa-map-marker" style="font-size: 32px; color: red; text-shadow: 0 0 3px white;"></i>',
         iconSize: [32, 32],
         className: 'custom-marker'
     }));
-    
+
+    // Asegurar que el dragging esté activado y cambiar cursor
+    if (destinoMarker.dragging) destinoMarker.dragging.enable();
+    const destinoIcon = destinoMarker.getElement && destinoMarker.getElement();
+    if (destinoIcon) destinoIcon.style.cursor = 'move';
+
+    // Mostrar coordenadas mientras se arrastra
+    destinoMarker.on('drag', function(e) {
+        const p = e.target.getLatLng();
+        document.getElementById('destino-label').innerHTML = `<i class="fa fa-map-marker" style="color: red;"></i> Moviendo: ${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
+        document.getElementById('destino').value = `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
+    });
+
     destinoMarker.on('dragend', function(e) {
         destinoCoords = e.target.getLatLng();
         actualizarRuta();
@@ -503,6 +539,11 @@ async function actualizarRuta() {
         
         // Habilitar botón guardar
         document.getElementById('btnGuardar').disabled = false;
+        // Habilitar botones de edición y recálculo
+        const btnEditar = document.getElementById('btnEditarRuta');
+        const btnRecalc = document.getElementById('btnRecalcRuta');
+        if (btnEditar) btnEditar.disabled = false;
+        if (btnRecalc) btnRecalc.disabled = false;
     }
 }
 
@@ -557,7 +598,117 @@ function limpiarPuntos() {
     document.getElementById('coordenadas_vuelta').value = '';
 }
 
-// Inicializar cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', initMap);
+// Funcionalidad adicional: edición de waypoints y recálculo automático
+
+async function recalculateWithWaypoints() {
+    if (!origenCoords || !destinoCoords) return; // requiere ambos puntos
+    const pts = [origenCoords].concat(waypoints || []).concat([destinoCoords]);
+    const coordsStr = pts.map(p => `${p.lng},${p.lat}`).join(';');
+    try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.code === 'Ok' && data.routes && data.routes.length) {
+            const route = data.routes[0];
+            const coordenadas = route.geometry.coordinates.map(c => [c[1], c[0]]);
+            if (rutaLinea) map.removeLayer(rutaLinea);
+            rutaLinea = L.polyline(coordenadas, { color: '#0ea5e9', weight: 5, opacity: 0.8 }).addTo(map);
+            // actualizar campos ocultos e info
+            document.getElementById('coordenadas_ida').value = JSON.stringify(coordenadas);
+            document.getElementById('distancia_ida').value = (route.distance/1000).toFixed(1);
+            document.getElementById('duracion_ida').value = Math.round(route.duration/60);
+            mostrarInformacionRuta({coordenadas: coordenadas, duracion: Math.round(route.duration/60), distancia: (route.distance/1000).toFixed(1)}, {coordenadas: [], duracion: 0, distancia: 0});
+        } else {
+            console.warn('OSRM no devolvió ruta válida', data);
+        }
+    } catch (err) {
+        console.error('Error en recálculo:', err);
+    }
+}
+
+// Debounce simple para evitar recalculos rápidos seguidos
+function debounce(fn, wait) {
+    let t;
+    return function(...args) {
+        clearTimeout(t);
+        t = setTimeout(() => fn.apply(this, args), wait);
+    };
+}
+
+const debouncedRecalc = debounce(recalculateWithWaypoints, 300);
+
+function createWaypointMarkers(latlngs) {
+    // Limpiar marcadores previos
+    waypointMarkers.forEach(m => map.removeLayer(m));
+    waypointMarkers = [];
+    waypoints = [];
+
+    // Crear marcadores para puntos intermedios (excluye primero y último)
+    for (let i = 1; i < latlngs.length - 1; i++) {
+        const p = latlngs[i];
+        const mk = L.marker(p, { draggable: true }).addTo(map);
+        mk.setIcon(L.divIcon({ html: '<i class="fa fa-circle" style="color:#f59e0b;font-size:14px"></i>', className: 'wp-marker' }));
+
+        // mantener copia inicial en array
+        waypoints.push(p);
+
+        mk.on('drag', function(e) {
+            const pos = e.target.getLatLng();
+            // actualizar etiqueta opcional (no invasiva)
+        });
+
+        mk.on('dragend', function(e) {
+            const pos = e.target.getLatLng();
+            // actualizar el waypoint correspondiente
+            const idx = waypointMarkers.indexOf(mk);
+            if (idx !== -1) {
+                waypoints[idx] = pos;
+            }
+            debouncedRecalc();
+        });
+
+        mk.on('contextmenu', function(e) {
+            // eliminar waypoint con clic derecho
+            const idx = waypointMarkers.indexOf(mk);
+            if (idx !== -1) {
+                map.removeLayer(mk);
+                waypointMarkers.splice(idx, 1);
+                waypoints.splice(idx, 1);
+                debouncedRecalc();
+            }
+        });
+
+        waypointMarkers.push(mk);
+    }
+}
+
+// Inicializar cuando el DOM esté listo y conectar botones
+document.addEventListener('DOMContentLoaded', function() {
+    initMap();
+
+    const btnEditar = document.getElementById('btnEditarRuta');
+    const btnRecalc = document.getElementById('btnRecalcRuta');
+
+    if (btnEditar) {
+        btnEditar.addEventListener('click', function() {
+            editMode = !editMode;
+            this.textContent = editMode ? 'Salir edición' : 'Editar ruta';
+            this.classList.toggle('btn-primary', editMode);
+            this.classList.toggle('btn-secondary', !editMode);
+
+            if (editMode) {
+                if (rutaLinea) createWaypointMarkers(rutaLinea.getLatLngs());
+            } else {
+                waypointMarkers.forEach(m => map.removeLayer(m));
+                waypointMarkers = [];
+                waypoints = [];
+            }
+        });
+    }
+
+    if (btnRecalc) {
+        btnRecalc.addEventListener('click', recalculateWithWaypoints);
+    }
+});
 </script>
 {% endblock %}
