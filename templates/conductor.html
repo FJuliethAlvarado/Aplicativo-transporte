@@ -258,14 +258,16 @@ body {
     }
 }
 
-.bus-marker {
-    animation: pulse 1s infinite;
+/* Animación del marcador del bus */
+@keyframes busRotate {
+    0%   { transform: scale(1.0); }
+    50%  { transform: scale(1.15); }
+    100% { transform: scale(1.0); }
 }
 
-@keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-    100% { transform: scale(1); }
+.bus-icon-wrapper {
+    animation: busRotate 1.4s ease-in-out infinite;
+    display: inline-block;
 }
 
 @keyframes slideUp {
@@ -343,109 +345,131 @@ body {
 </div>
 
 <script>
-// ==================== INICIALIZACIÓN ====================
+// ==================== ESTADO GLOBAL ====================
 var map;
-var rutaData = null;
-var busMarker = null;
+var rutaData            = null;
+var busMarker           = null;
 var intervaloSimulacion = null;
-var sentidoActual = 'ida';
-var onlineStatus = false;
-var indiceActual = 0;
-var direccion = 1;
-var coordenadasActuales = [];
+var sentidoActual       = 'ida';
+var onlineStatus        = false;
+var indiceActual        = 0;
+var direccion           = 1;
+var coordenadasActuales = [];   // ← GLOBAL, la llena dibujarRuta()
 
-var conductorId = {{ conductor.id if conductor else 0 }};
+var conductorId    = {{ conductor.id if conductor else 0 }};
 var rutaAsignadaId = {{ conductor.ruta_asignada_id if conductor and conductor.ruta_asignada_id else 'null' }};
 
-// ==================== ONLINE/OFFLINE CON SIMULACIÓN ====================
+// ==================== ICONO DEL BUS ====================
+function crearIconoBus() {
+    return L.divIcon({
+        html: `<div class="bus-icon-wrapper">
+                 <i class="fa fa-location-arrow"
+                    style="font-size:32px;color:#0ea5e9;
+                           filter:drop-shadow(0 0 6px rgba(14,165,233,0.9));"></i>
+               </div>`,
+        iconSize:    [32, 32],
+        iconAnchor:  [16, 16],
+        popupAnchor: [0, -18]
+    });
+}
+
+// ==================== ONLINE / OFFLINE ====================
 function toggleOnlineStatus() {
     onlineStatus = !onlineStatus;
-    const statusDiv = document.getElementById('statusBtn');
+    const statusDiv  = document.getElementById('statusBtn');
     const statusText = document.getElementById('statusText');
+    if (!coordenadasActuales || coordenadasActuales.length === 0) {
+        console.warn("No hay coordenadas aún");
+    return;
+}
     
+
     if (onlineStatus) {
         statusDiv.classList.remove('offline');
         statusDiv.classList.add('online');
         statusText.innerText = 'Online';
-        iniciarSimulacionBus();
         mostrarNotificacion('✅ Bus ONLINE - Iniciando recorrido simulado', 'success');
+        iniciarSimulacionBus();
     } else {
         statusDiv.classList.remove('online');
         statusDiv.classList.add('offline');
         statusText.innerText = 'Offline';
-        detenerSimulacionBus();
         mostrarNotificacion('⛔ Bus OFFLINE - Recorrido detenido', 'warning');
+        detenerSimulacionBus();
     }
 }
 
-// ==================== ONLINE/OFFLINE CON SIMULACIÓN USANDO bus.png ====================
+// ==================== SIMULACIÓN ====================
 function iniciarSimulacionBus() {
     if (intervaloSimulacion) {
         clearInterval(intervaloSimulacion);
         intervaloSimulacion = null;
     }
-    
+
     if (!coordenadasActuales || coordenadasActuales.length === 0) {
-        console.log('No hay coordenadas');
-        mostrarNotificacion('No hay coordenadas de ruta', 'error');
+        mostrarNotificacion('No hay coordenadas de ruta para simular', 'error');
+        console.warn('iniciarSimulacionBus: coordenadasActuales está vacío');
         return;
     }
-    
+
     indiceActual = 0;
-    direccion = 1;
-    
-    // Usar la imagen bus.png como icono
-    var busIcon = L.icon({
-        iconUrl: '{{ url_for("static", filename="icons/bus.png") }}',
-        iconSize: [40, 40],
-        iconAnchor: [20, 20],
-        popupAnchor: [0, -20]
-    });
-    
+    direccion    = 1;
+
     if (busMarker) {
         map.removeLayer(busMarker);
+        busMarker = null;
     }
-    
-    busMarker = L.marker(coordenadasActuales[0], {icon: busIcon}).addTo(map);
-    busMarker.bindPopup(`
-        <b>Bus en servicio</b><br>
-        <b>Ruta:</b> ${rutaData ? rutaData.nombre : 'Cargando...'}<br>
-        <b>Estado:</b> 🟢 Activo
-    `);
-    
+
+    busMarker = L.marker(coordenadasActuales[0], { icon: crearIconoBus() }).addTo(map);
+    busMarker.bindPopup(popupBus(0));
     map.setView(coordenadasActuales[0], 15);
-    
-    intervaloSimulacion = setInterval(() => {
+
+    intervaloSimulacion = setInterval(function() {
         if (!onlineStatus) return;
-        
+
         indiceActual += direccion;
-        
+
         if (indiceActual >= coordenadasActuales.length - 1) {
             indiceActual = coordenadasActuales.length - 1;
-            direccion = -1;
+            direccion    = -1;
             mostrarNotificacion('📍 Llegando al destino - Iniciando regreso', 'info');
         } else if (indiceActual <= 0) {
             indiceActual = 0;
-            direccion = 1;
+            direccion    = 1;
             mostrarNotificacion('📍 Regresando al origen', 'info');
         }
-        
+
         const nuevaPos = coordenadasActuales[indiceActual];
         busMarker.setLatLng(nuevaPos);
-        
-        const progreso = Math.round((indiceActual / coordenadasActuales.length) * 100);
-        busMarker.bindPopup(`
-            <b>🚌 Bus en movimiento</b><br>
-            <b>Ruta:</b> ${rutaData ? rutaData.nombre : 'Cargando...'}<br>
-            <b>Sentido:</b> ${sentidoActual === 'ida' ? 'Ida →' : 'Vuelta ←'}<br>
-            <b>Progreso:</b> ${progreso}%<br>
-            <b>Ubicación:</b> ${nuevaPos.lat.toFixed(5)}, ${nuevaPos.lng.toFixed(5)}
-        `).openPopup();
-        
+        busMarker.setPopupContent(popupBus(indiceActual));
         map.panTo(nuevaPos);
         enviarUbicacionServidor(nuevaPos.lat, nuevaPos.lng);
-        
+
     }, 2000);
+}
+
+function popupBus(idx) {
+
+    if (!coordenadasActuales || coordenadasActuales.length === 0) {
+        return "Sin datos de ruta";
+    }
+
+    const pos = coordenadasActuales[idx];
+
+    if (!pos || typeof pos.lat !== 'number' || typeof pos.lng !== 'number') {
+        console.warn("Posición inválida en idx:", idx, pos);
+        return "Posición no disponible";
+    }
+
+    const progreso = Math.round(
+        (idx / Math.max(coordenadasActuales.length - 1, 1)) * 100
+    );
+
+    return `
+        <b>🚌 Bus en movimiento</b><br>
+        <b>Progreso:</b> ${progreso}%<br>
+        <b>Posición:</b> ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}
+    `;
 }
 
 function detenerSimulacionBus() {
@@ -459,17 +483,18 @@ function detenerSimulacionBus() {
     }
 }
 
+// ==================== MAPA ====================
 function initMap() {
     map = L.map('map').setView([4.917, -74.028], 14);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
-    
+
     if (rutaAsignadaId) {
         cargarRutaAsignada();
     } else {
         document.getElementById('rutaNombre').innerHTML = '🚫 Sin ruta asignada';
-        document.getElementById('rutaInfo').innerHTML = 'Contacta al administrador';
+        document.getElementById('rutaInfo').innerHTML   = 'Contacta al administrador';
         mostrarNotificacion('No tienes una ruta asignada', 'warning');
     }
 }
@@ -478,8 +503,8 @@ async function cargarRutaAsignada() {
     try {
         mostrarNotificacion('Cargando tu ruta...', 'info');
         const response = await fetch(`/api/conductor/ruta/${rutaAsignadaId}`);
-        const data = await response.json();
-        
+        const data     = await response.json();
+
         if (data.ruta) {
             rutaData = data.ruta;
             actualizarInfoRuta();
@@ -495,120 +520,125 @@ async function cargarRutaAsignada() {
 }
 
 function actualizarInfoRuta() {
-    const nombreElem = document.getElementById('rutaNombre');
-    const infoElem = document.getElementById('rutaInfo');
-    
-    if (rutaData) {
-        nombreElem.innerHTML = `<i class="fa fa-bus"></i> ${rutaData.nombre}`;
-        
-        if (sentidoActual === 'ida') {
-            infoElem.innerHTML = `
-                <i class="fa fa-play"></i> Origen: ${rutaData.origen}<br>
-                <i class="fa fa-stop"></i> Destino: ${rutaData.destino}<br>
-                <i class="fa fa-clock"></i> Duración: ${rutaData.duracion_ida} min<br>
-                <i class="fa fa-road"></i> Distancia: ${rutaData.distancia_ida} km
-            `;
-            document.getElementById('sentidoBadge').innerHTML = 'Sentido: Ida →';
-        } else {
-            infoElem.innerHTML = `
-                <i class="fa fa-play"></i> Origen: ${rutaData.destino}<br>
-                <i class="fa fa-stop"></i> Destino: ${rutaData.origen}<br>
-                <i class="fa fa-clock"></i> Duración: ${rutaData.duracion_vuelta} min<br>
-                <i class="fa fa-road"></i> Distancia: ${rutaData.distancia_vuelta} km
-            `;
-            document.getElementById('sentidoBadge').innerHTML = 'Sentido: Vuelta ←';
-        }
+    if (!rutaData) return;
+
+    document.getElementById('rutaNombre').innerHTML = `<i class="fa fa-bus"></i> ${rutaData.nombre}`;
+
+    if (sentidoActual === 'ida') {
+        document.getElementById('rutaInfo').innerHTML = `
+            <i class="fa fa-play"></i> Origen: ${rutaData.origen}<br>
+            <i class="fa fa-stop"></i> Destino: ${rutaData.destino}<br>
+            <i class="fa fa-clock"></i> Duración: ${rutaData.duracion_ida} min<br>
+            <i class="fa fa-road"></i> Distancia: ${rutaData.distancia_ida} km`;
+        document.getElementById('sentidoBadge').innerHTML = 'Sentido: Ida →';
+    } else {
+        document.getElementById('rutaInfo').innerHTML = `
+            <i class="fa fa-play"></i> Origen: ${rutaData.destino}<br>
+            <i class="fa fa-stop"></i> Destino: ${rutaData.origen}<br>
+            <i class="fa fa-clock"></i> Duración: ${rutaData.duracion_vuelta} min<br>
+            <i class="fa fa-road"></i> Distancia: ${rutaData.distancia_vuelta} km`;
+        document.getElementById('sentidoBadge').innerHTML = 'Sentido: Vuelta ←';
     }
 }
 
 function dibujarRuta() {
     if (!rutaData) return;
-    
-    if (window.rutaLinea) map.removeLayer(window.rutaLinea);
-    if (window.origenMarker) map.removeLayer(window.origenMarker);
+
+    if (window.rutaLinea)     map.removeLayer(window.rutaLinea);
+    if (window.origenMarker)  map.removeLayer(window.origenMarker);
     if (window.destinoMarker) map.removeLayer(window.destinoMarker);
-    
+
     try {
-        if (sentidoActual === 'ida') {
-            coordenadasActuales = JSON.parse(rutaData.coordenadas_ida);
-        } else {
-            coordenadasActuales = JSON.parse(rutaData.coordenadas_vuelta);
+        const coordsRaw = (sentidoActual === 'ida')
+            ? rutaData.coordenadas_ida
+            : rutaData.coordenadas_vuelta;
+
+        if (!coordsRaw || coordsRaw === 'undefined' || coordsRaw === 'null') {
+            console.warn('dibujarRuta: coordenadas inválidas:', coordsRaw);
+            mostrarNotificacion('La ruta no tiene coordenadas válidas', 'warning');
+            coordenadasActuales = [];
+            return;
         }
-    } catch(e) {
-        console.error('Error parseando coordenadas:', e);
+
+        const parsed = JSON.parse(coordsRaw);
+
+        if (!Array.isArray(parsed) || parsed.length === 0) {
+            mostrarNotificacion('La ruta no tiene coordenadas válidas', 'warning');
+            coordenadasActuales = [];
+            return;
+        }
+
+        coordenadasActuales = parsed.map(p => ({
+                lat: p[0],
+                lng: p[1]
+            }));
+
+    } catch (e) {
+        console.error('dibujarRuta: error parseando coordenadas:', e);
+        mostrarNotificacion('Error al procesar la ruta', 'error');
+        coordenadasActuales = [];
         return;
     }
-    
-    if (!coordenadasActuales || coordenadasActuales.length === 0) {
-        mostrarNotificacion('La ruta no tiene coordenadas válidas', 'warning');
-        return;
-    }
-    
+
     const lineColor = rutaData.tipo === 'intermunicipal' ? '#ef4444' : '#0ea5e9';
     window.rutaLinea = L.polyline(coordenadasActuales, {
-        color: lineColor,
-        weight: 6,
-        opacity: 0.9
+        color: lineColor, weight: 6, opacity: 0.9
     }).addTo(map);
-    
-    const origenIcon = L.divIcon({
-        html: '<i class="fa fa-location-arrow" style="font-size: 32px; color: #16a34a;"></i>',
-        iconSize: [32, 32]
-    });
-    
-    const destinoIcon = L.divIcon({
-        html: '<i class="fa fa-flag-checkered" style="font-size: 32px; color: #dc2626;"></i>',
-        iconSize: [32, 32]
-    });
-    
-    window.origenMarker = L.marker(coordenadasActuales[0], {icon: origenIcon}).addTo(map)
-        .bindPopup(`<b>📍 ORIGEN</b><br>${sentidoActual === 'ida' ? rutaData.origen : rutaData.destino}`);
-    
-    window.destinoMarker = L.marker(coordenadasActuales[coordenadasActuales.length - 1], {icon: destinoIcon}).addTo(map)
-        .bindPopup(`<b>🏁 DESTINO</b><br>${sentidoActual === 'ida' ? rutaData.destino : rutaData.origen}`);
-    
+
+    window.origenMarker = L.marker(coordenadasActuales[0], {
+        icon: L.divIcon({
+            html: '<i class="fa fa-map-marker" style="font-size:32px;color:#16a34a;text-shadow:0 0 4px #fff;"></i>',
+            iconSize: [32, 32], iconAnchor: [16, 32]
+        })
+    }).addTo(map).bindPopup(
+        `<b>📍 ORIGEN</b><br>${sentidoActual === 'ida' ? rutaData.origen : rutaData.destino}`
+    );
+
+    window.destinoMarker = L.marker(coordenadasActuales[coordenadasActuales.length - 1], {
+        icon: L.divIcon({
+            html: '<i class="fa fa-flag-checkered" style="font-size:32px;color:#dc2626;text-shadow:0 0 4px #fff;"></i>',
+            iconSize: [32, 32], iconAnchor: [16, 32]
+        })
+    }).addTo(map).bindPopup(
+        `<b>🏁 DESTINO</b><br>${sentidoActual === 'ida' ? rutaData.destino : rutaData.origen}`
+    );
+
     map.fitBounds(window.rutaLinea.getBounds());
 }
 
+// ==================== CONTROLES ====================
 function alternarSentido() {
     sentidoActual = sentidoActual === 'ida' ? 'vuelta' : 'ida';
     const estabaOnline = onlineStatus;
-    
-    if (estabaOnline) {
-        detenerSimulacionBus();
-    }
-    
+
+    if (estabaOnline) detenerSimulacionBus();
     dibujarRuta();
     actualizarInfoRuta();
-    
-    if (estabaOnline) {
-        iniciarSimulacionBus();
-    }
-    
-    mostrarNotificacion(`Sentido cambiado a: ${sentidoActual === 'ida' ? 'Ida' : 'Vuelta'}`, 'info');
+    if (estabaOnline) iniciarSimulacionBus();
+
+    mostrarNotificacion(`Sentido: ${sentidoActual === 'ida' ? 'Ida →' : 'Vuelta ←'}`, 'info');
 }
 
 async function enviarUbicacionServidor(lat, lng) {
     if (!rutaAsignadaId || !onlineStatus) return;
     try {
         await fetch('/api/conductor/ubicacion', {
-            method: 'POST',
+            method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 conductor_id: conductorId,
-                lat: lat,
-                lng: lng,
+                lat, lng,
                 ruta_id: rutaAsignadaId,
                 sentido: sentidoActual,
-                online: onlineStatus
+                online:  onlineStatus
             })
         });
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Error enviando ubicación:', error);
     }
 }
 
-function zoomIn() { map.zoomIn(); }
+function zoomIn()  { map.zoomIn(); }
 function zoomOut() { map.zoomOut(); }
 
 function centrarRuta() {
@@ -633,26 +663,25 @@ function cerrarModal() {
 }
 
 async function enviarReporte() {
-    const tipo = document.getElementById('tipoReporte').value;
+    const tipo        = document.getElementById('tipoReporte').value;
     const descripcion = document.getElementById('descripcionReporte').value;
-    
+
     if (!descripcion) {
         mostrarNotificacion('Describe la incidencia', 'warning');
         return;
     }
-    
+
     try {
         const response = await fetch('/api/conductor/reporte', {
-            method: 'POST',
+            method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 conductor_id: conductorId,
-                tipo: tipo,
-                descripcion: descripcion,
+                tipo, descripcion,
                 ruta_id: rutaAsignadaId
             })
         });
-        
+
         if (response.ok) {
             mostrarNotificacion('Reporte enviado', 'success');
             cerrarModal();
@@ -667,23 +696,17 @@ async function enviarReporte() {
 }
 
 function mostrarNotificacion(mensaje, tipo = 'info') {
-    const notif = document.createElement('div');
     const color = tipo === 'success' ? '#22c55e' : tipo === 'error' ? '#ef4444' : '#0ea5e9';
+    const notif = document.createElement('div');
     notif.style.cssText = `
-        position: fixed;
-        bottom: 80px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: ${color};
-        color: white;
-        padding: 12px 20px;
-        border-radius: 8px;
-        z-index: 2000;
-        font-size: 14px;
-        animation: slideUp 0.3s ease;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        white-space: nowrap;
-    `;
+        position:fixed; bottom:80px; left:50%;
+        transform:translateX(-50%);
+        background:${color}; color:white;
+        padding:12px 20px; border-radius:8px;
+        z-index:2000; font-size:14px;
+        animation:slideUp 0.3s ease;
+        box-shadow:0 2px 10px rgba(0,0,0,0.2);
+        white-space:nowrap;`;
     notif.textContent = mensaje;
     document.body.appendChild(notif);
     setTimeout(() => notif.remove(), 3000);
@@ -691,7 +714,7 @@ function mostrarNotificacion(mensaje, tipo = 'info') {
 
 function cerrarSesion() {
     detenerSimulacionBus();
-    window.location.href = "/logout";
+    window.location.href = '/logout';
 }
 
 document.addEventListener('DOMContentLoaded', initMap);

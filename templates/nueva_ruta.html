@@ -112,7 +112,7 @@
                     <li><i class="fa fa-mouse-pointer"></i> <strong>Haz clic</strong> nuevamente para marcar <span style="color: red;">DESTINO</span> (segundo clic)</li>
                     <li><i class="fa fa-road"></i> Se calculará <strong>automáticamente</strong> la ruta de ida y vuelta</li>
                     <li><i class="fa fa-exchange-alt"></i> La línea <span style="color: #0ea5e9;">azul</span> es la <strong>IDA</strong>, la línea <span style="color: #7c3aed;">morada punteada</span> es la <strong>VUELTA</strong></li>
-                    <li><i class="fa fa-arrows-alt"></i> Puedes <strong>arrastrar</strong> los marcadores para ajustar los puntos</li>
+                    <li><i class="fa fa-arrows-alt"></i> En modo edición puedes <strong>arrastrar</strong> los puntos intermedios para ajustar el trayecto</li>
                 </ul>
                 <div style="margin-top:10px; display:flex; gap:8px;">
                     <button id="btnEditarRuta" class="btn btn-secondary" type="button" disabled>
@@ -316,27 +316,26 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-// Variables globales
-let isRecalculating = false;
+// ─── Estado global ────────────────────────────────────────────────────────────
 var map;
-var origenMarker = null;
-var destinoMarker = null;
-var rutaLinea = null;
+var origenMarker    = null;
+var destinoMarker   = null;
+var rutaLinea       = null;
 var rutaVueltaLinea = null;
-var origenCoords = null;
-var destinoCoords = null;
-var waypoints = [];
-var waypointMarkers = [];
-var editMode = false;
+var origenCoords    = null;
+var destinoCoords   = null;
+var waypointMarkers = [];   // markers de puntos intermedios
+var isRecalculating = false;
+var editMode        = false;
+var recalcTimeout   = null;
 
-// Inicializar mapa (centrado en Cajicá)
+// ─── Inicializar mapa ─────────────────────────────────────────────────────────
 function initMap() {
     map = L.map('editorMap').setView([4.917, -74.028], 14);
-    
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
     }).addTo(map);
-    
+
     map.on('click', function(e) {
         if (!origenMarker) {
             setOrigen(e.latlng);
@@ -351,54 +350,46 @@ function initMap() {
     });
 }
 
-// Función para crear ruta simple (sin mapa)
+// ─── Crear ruta simple (sin mapa) ─────────────────────────────────────────────
 function crearRutaSimple() {
-    const nombre = document.getElementById('nombre').value;
-    const tipo = document.getElementById('tipo').value;
+    const nombre     = document.getElementById('nombre').value;
+    const tipo       = document.getElementById('tipo').value;
     const horaInicio = document.getElementById('hora_inicio').value;
-    const horaFin = document.getElementById('hora_fin').value;
-    
-    if (!nombre) {
-        alert('Por favor ingresa el nombre de la ruta');
-        return;
-    }
-    if (!tipo) {
-        alert('Por favor selecciona el tipo de ruta');
-        return;
-    }
-    if (!horaInicio || !horaFin) {
-        alert('Por favor ingresa la hora de inicio y la hora de finalización');
-        return;
-    }
-    
-    document.getElementById('origen').value = 'Centro de Cajicá';
-    document.getElementById('destino').value = 'Terminal de Transportes';
-    document.getElementById('coordenadas_ida').value = '';
-    document.getElementById('coordenadas_vuelta').value = '';
-    document.getElementById('duracion_ida').value = '';
-    document.getElementById('duracion_vuelta').value = '';
-    document.getElementById('distancia_ida').value = '';
-    document.getElementById('distancia_vuelta').value = '';
-    
+    const horaFin    = document.getElementById('hora_fin').value;
+
+    if (!nombre)              { alert('Por favor ingresa el nombre de la ruta'); return; }
+    if (!tipo)                { alert('Por favor selecciona el tipo de ruta'); return; }
+    if (!horaInicio || !horaFin) { alert('Por favor ingresa la hora de inicio y la hora de finalización'); return; }
+
+    document.getElementById('origen').value            = 'Centro de Cajicá';
+    document.getElementById('destino').value           = 'Terminal de Transportes';
+    document.getElementById('coordenadas_ida').value   = '';
+    document.getElementById('coordenadas_vuelta').value= '';
+    document.getElementById('duracion_ida').value      = '';
+    document.getElementById('duracion_vuelta').value   = '';
+    document.getElementById('distancia_ida').value     = '';
+    document.getElementById('distancia_vuelta').value  = '';
+
     document.getElementById('rutaForm').submit();
 }
 
+// ─── Marcadores ───────────────────────────────────────────────────────────────
 async function setOrigen(latlng) {
     origenCoords = latlng;
     if (origenMarker) map.removeLayer(origenMarker);
-    
+
     origenMarker = L.marker(latlng, { draggable: true }).addTo(map);
     origenMarker.setIcon(L.divIcon({
-        html: '<i class="fa fa-map-marker" style="font-size: 32px; color: green; text-shadow: 0 0 3px white;"></i>',
-        iconSize: [32, 32]
+        html: '<i class="fa fa-map-marker" style="font-size:32px;color:green;text-shadow:0 0 3px white;"></i>',
+        iconSize: [32, 32],
+        iconAnchor: [16, 32]
     }));
-    
-    origenMarker.on('dragend', function(e) {
+    origenMarker.on('dragend', async function(e) {
         origenCoords = e.target.getLatLng();
-        actualizarRuta();
-        actualizarNombreOrigen();
+        await actualizarNombreOrigen();
+        if (destinoCoords) actualizarRuta();
     });
-    
+
     await actualizarNombreOrigen();
     if (destinoCoords) actualizarRuta();
 }
@@ -406,301 +397,260 @@ async function setOrigen(latlng) {
 async function setDestino(latlng) {
     destinoCoords = latlng;
     if (destinoMarker) map.removeLayer(destinoMarker);
-    
+
     destinoMarker = L.marker(latlng, { draggable: true }).addTo(map);
     destinoMarker.setIcon(L.divIcon({
-        html: '<i class="fa fa-map-marker" style="font-size: 32px; color: red; text-shadow: 0 0 3px white;"></i>',
-        iconSize: [32, 32]
+        html: '<i class="fa fa-map-marker" style="font-size:32px;color:red;text-shadow:0 0 3px white;"></i>',
+        iconSize: [32, 32],
+        iconAnchor: [16, 32]
     }));
-    
-    destinoMarker.on('dragend', function(e) {
+    destinoMarker.on('dragend', async function(e) {
         destinoCoords = e.target.getLatLng();
-        actualizarRuta();
-        actualizarNombreDestino();
+        await actualizarNombreDestino();
+        if (origenCoords) actualizarRuta();
     });
-    
+
     await actualizarNombreDestino();
     if (origenCoords) actualizarRuta();
 }
 
+// ─── Geocodificación inversa ──────────────────────────────────────────────────
 async function reverseGeocode(latlng) {
     try {
         const url = `https://nominatim.openstreetmap.org/reverse?lat=${latlng.lat}&lon=${latlng.lng}&format=json&zoom=18&addressdetails=1`;
-        const response = await fetch(url, { headers: { 'User-Agent': 'TransportApp/1.0' } });
-        const data = await response.json();
+        const res  = await fetch(url, { headers: { 'User-Agent': 'TransportApp/1.0' } });
+        const data = await res.json();
         if (data.display_name) {
             const parts = data.display_name.split(',');
             return parts[0] + ', ' + parts[1];
         }
-        return `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
-    } catch (error) {
-        return `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
-    }
+    } catch (_) {}
+    return `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`;
 }
 
 async function actualizarNombreOrigen() {
-    if (origenCoords) {
-        const nombre = await reverseGeocode(origenCoords);
-        document.getElementById('origen-label').innerHTML = `<i class="fa fa-map-marker" style="color: green;"></i> <strong>Origen:</strong> ${nombre}`;
-        document.getElementById('origen').value = nombre;
-    }
+    if (!origenCoords) return;
+    const nombre = await reverseGeocode(origenCoords);
+    document.getElementById('origen-label').innerHTML =
+        `<i class="fa fa-map-marker" style="color:green;"></i> <strong>Origen:</strong> ${nombre}`;
+    document.getElementById('origen').value = nombre;
 }
 
 async function actualizarNombreDestino() {
-    if (destinoCoords) {
-        const nombre = await reverseGeocode(destinoCoords);
-        document.getElementById('destino-label').innerHTML = `<i class="fa fa-map-marker" style="color: red;"></i> <strong>Destino:</strong> ${nombre}`;
-        document.getElementById('destino').value = nombre;
-    }
+    if (!destinoCoords) return;
+    const nombre = await reverseGeocode(destinoCoords);
+    document.getElementById('destino-label').innerHTML =
+        `<i class="fa fa-map-marker" style="color:red;"></i> <strong>Destino:</strong> ${nombre}`;
+    document.getElementById('destino').value = nombre;
 }
 
-async function calcularRuta(start, end) {
-    try {
-        const url = `https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`;
-        const response = await fetch(url);
-        const data = await response.json();
-        if (data.code === 'Ok' && data.routes.length > 0) {
-            const route = data.routes[0];
-            return {
-                coordenadas: route.geometry.coordinates.map(c => [c[1], c[0]]),
-                duracion: Math.round(route.duration / 60),
-                distancia: (route.distance / 1000).toFixed(1)
-            };
-        }
-    } catch (error) {
-        console.error('Error calculando ruta:', error);
-    }
-    return null;
+// ─── Cálculo de ruta OSRM ─────────────────────────────────────────────────────
+
+async function calcularRutaOSRM(puntos) {
+    const coordsStr = puntos.map(p => `${p.lng},${p.lat}`).join(';');
+    const url = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson`;
+    const res  = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error(`OSRM ${res.status}`);
+    const data = await res.json();
+    if (data.code !== 'Ok' || !data.routes.length) return null;
+    const route = data.routes[0];
+    return {
+        coordenadas: route.geometry.coordinates.map(c => [c[1], c[0]]),
+        duracion:    Math.round(route.duration / 60),
+        distancia:   (route.distance / 1000).toFixed(1)
+    };
 }
 
+// ─── Ruta inicial (sin waypoints) ────────────────────────────────────────────
 async function actualizarRuta() {
     if (!origenCoords || !destinoCoords) return;
-    if (rutaLinea) map.removeLayer(rutaLinea);
-    if (rutaVueltaLinea) map.removeLayer(rutaVueltaLinea);
-    
-    const rutaIda = await calcularRuta(origenCoords, destinoCoords);
-    const rutaVuelta = await calcularRuta(destinoCoords, origenCoords);
-    
-    if (rutaIda && rutaVuelta) {
-        rutaLinea = L.polyline(rutaIda.coordenadas, { color: '#0ea5e9', weight: 5, opacity: 0.8 }).addTo(map);
-        rutaVueltaLinea = L.polyline(rutaVuelta.coordenadas, { color: '#7c3aed', weight: 4, opacity: 0.6, dashArray: '10, 10' }).addTo(map);
-        
-        const bounds = L.latLngBounds(rutaIda.coordenadas);
-        map.fitBounds(bounds);
-        mostrarInformacionRuta(rutaIda, rutaVuelta);
-        document.getElementById('btnGuardar').disabled = false;
-        
-        const btnEditar = document.getElementById('btnEditarRuta');
-        const btnRecalc = document.getElementById('btnRecalcRuta');
-        if (btnEditar) btnEditar.disabled = false;
-        if (btnRecalc) btnRecalc.disabled = false;
+
+    // Limpiar waypoints anteriores al recalcular desde cero
+    limpiarWaypoints();
+
+    const [ida, vuelta] = await Promise.all([
+        calcularRutaOSRM([origenCoords, destinoCoords]),
+        calcularRutaOSRM([destinoCoords, origenCoords])
+    ]);
+
+    if (ida && vuelta) {
+        dibujarRutas(ida, vuelta);
+        guardarDatosRuta(ida, vuelta);
+        mostrarInformacionRuta(ida, vuelta);
+        habilitarControles(true);
     }
+}
+
+// ─── Recalcular con waypoints intermedios ────────────────────────────────────
+async function recalcularConWaypoints() {
+    if (isRecalculating) return;
+    if (!origenCoords || !destinoCoords) return;
+    isRecalculating = true;
+
+    try {
+        const MAX_WP = 8;
+        // Leer posiciones actuales de los markers (el usuario pudo arrastrarlos)
+        const wps = waypointMarkers
+            .map(m => m.getLatLng())
+            .slice(0, MAX_WP);
+
+        const puntosIda    = [origenCoords,  ...wps,               destinoCoords];
+        const puntosVuelta = [destinoCoords, ...[...wps].reverse(), origenCoords];
+
+        const [ida, vuelta] = await Promise.all([
+            calcularRutaOSRM(puntosIda),
+            calcularRutaOSRM(puntosVuelta)
+        ]);
+
+        if (!ida || !vuelta) {
+            alert('No se pudo calcular la ruta con los puntos actuales.');
+            return;
+        }
+
+        dibujarRutas(ida, vuelta);
+        guardarDatosRuta(ida, vuelta);    // ← aquí es donde se persisten las coords
+        mostrarInformacionRuta(ida, vuelta);
+
+    } catch (err) {
+        console.error('Error en recálculo:', err);
+        alert('Error al recalcular la ruta.');
+    } finally {
+        isRecalculating = false;
+    }
+}
+
+function safeRecalculate() {
+    clearTimeout(recalcTimeout);
+    recalcTimeout = setTimeout(recalcularConWaypoints, 1200);
+}
+
+// ─── Helpers de dibujo y guardado ────────────────────────────────────────────
+function dibujarRutas(ida, vuelta) {
+    if (rutaLinea)       map.removeLayer(rutaLinea);
+    if (rutaVueltaLinea) map.removeLayer(rutaVueltaLinea);
+
+    rutaLinea       = L.polyline(ida.coordenadas,    { color: '#0ea5e9', weight: 5, opacity: 0.8 }).addTo(map);
+    rutaVueltaLinea = L.polyline(vuelta.coordenadas, { color: '#7c3aed', weight: 4, opacity: 0.6, dashArray: '10, 10' }).addTo(map);
+
+    map.fitBounds(rutaLinea.getBounds());
+}
+
+/**
+ * Persiste las coordenadas y métricas de ida/vuelta en los campos ocultos
+ * del formulario. Esta es la función central que faltaba llamarse correctamente.
+ */
+function guardarDatosRuta(ida, vuelta) {
+    if (!ida.coordenadas || !ida.coordenadas.length ||
+        !vuelta.coordenadas || !vuelta.coordenadas.length) {
+        console.error('guardarDatosRuta: coordenadas inválidas, no se guarda');
+        return;
+    }
+    document.getElementById('coordenadas_ida').value    = JSON.stringify(ida.coordenadas);
+    document.getElementById('coordenadas_vuelta').value = JSON.stringify(vuelta.coordenadas);
+    document.getElementById('duracion_ida').value       = ida.duracion;
+    document.getElementById('duracion_vuelta').value    = vuelta.duracion;
+    document.getElementById('distancia_ida').value      = ida.distancia;
+    document.getElementById('distancia_vuelta').value   = vuelta.distancia;
 }
 
 function mostrarInformacionRuta(ida, vuelta) {
     document.getElementById('info-ruta').innerHTML = `
-        <p><strong>🚌 Ruta de Ida (Azul):</strong></p>
+        <p><strong>Ruta de Ida (Azul):</strong></p>
         <p>⏱ Duración: ${ida.duracion} minutos</p>
         <p>📏 Distancia: ${ida.distancia} km</p>
         <hr>
-        <p><strong>🔄 Ruta de Vuelta (Morada):</strong></p>
+        <p><strong>Ruta de Vuelta (Morada):</strong></p>
         <p>⏱ Duración: ${vuelta.duracion} minutos</p>
         <p>📏 Distancia: ${vuelta.distancia} km</p>
         <hr>
-        <p><strong>📊 Total recorrido:</strong> ${(parseFloat(ida.distancia) + parseFloat(vuelta.distancia)).toFixed(1)} km</p>
-        <p><i class="fa fa-check-circle" style="color: green;"></i> <strong>Ruta válida</strong> - Puedes guardar</p>
+        <p><strong>Total recorrido:</strong> ${(parseFloat(ida.distancia) + parseFloat(vuelta.distancia)).toFixed(1)} km</p>
+        <p><i class="fa fa-check-circle" style="color:green;"></i> <strong>Ruta válida</strong> - Puedes guardar</p>
     `;
-    
-    document.getElementById('coordenadas_ida').value = JSON.stringify(ida.coordenadas);
-    document.getElementById('coordenadas_vuelta').value = JSON.stringify(vuelta.coordenadas);
-    document.getElementById('duracion_ida').value = ida.duracion;
-    document.getElementById('duracion_vuelta').value = vuelta.duracion;
-    document.getElementById('distancia_ida').value = ida.distancia;
-    document.getElementById('distancia_vuelta').value = vuelta.distancia;
+}
+
+function habilitarControles(activo) {
+    document.getElementById('btnGuardar').disabled    = !activo;
+    document.getElementById('btnEditarRuta').disabled = !activo;
+    document.getElementById('btnRecalcRuta').disabled = !activo;
+}
+
+// ─── Limpiar ──────────────────────────────────────────────────────────────────
+function limpiarWaypoints() {
+    waypointMarkers.forEach(m => map.removeLayer(m));
+    waypointMarkers = [];
 }
 
 function limpiarPuntos() {
-    if (origenMarker) map.removeLayer(origenMarker);
-    if (destinoMarker) map.removeLayer(destinoMarker);
-    if (rutaLinea) map.removeLayer(rutaLinea);
+    if (origenMarker)    map.removeLayer(origenMarker);
+    if (destinoMarker)   map.removeLayer(destinoMarker);
+    if (rutaLinea)       map.removeLayer(rutaLinea);
     if (rutaVueltaLinea) map.removeLayer(rutaVueltaLinea);
-    
-    origenMarker = null;
-    destinoMarker = null;
-    origenCoords = null;
-    destinoCoords = null;
-    rutaLinea = null;
-    rutaVueltaLinea = null;
-    
-    document.getElementById('origen-label').innerHTML = 'Esperando clic...';
+    limpiarWaypoints();
+
+    origenMarker = destinoMarker = rutaLinea = rutaVueltaLinea = null;
+    origenCoords = destinoCoords = null;
+
+    document.getElementById('origen-label').innerHTML  = 'Esperando clic...';
     document.getElementById('destino-label').innerHTML = 'Esperando clic...';
-    document.getElementById('info-ruta').innerHTML = '<p>⚠️ Selecciona origen y destino en el mapa</p>';
-    document.getElementById('btnGuardar').disabled = true;
-    document.getElementById('origen').value = '';
-    document.getElementById('destino').value = '';
-    document.getElementById('coordenadas_ida').value = '';
-    document.getElementById('coordenadas_vuelta').value = '';
+    document.getElementById('info-ruta').innerHTML     = '<p>⚠️ Selecciona origen y destino en el mapa</p>';
+    document.getElementById('origen').value            = '';
+    document.getElementById('destino').value           = '';
+    document.getElementById('coordenadas_ida').value   = '';
+    document.getElementById('coordenadas_vuelta').value= '';
+    document.getElementById('duracion_ida').value      = '';
+    document.getElementById('duracion_vuelta').value   = '';
+    document.getElementById('distancia_ida').value     = '';
+    document.getElementById('distancia_vuelta').value  = '';
+    habilitarControles(false);
+
+    // Resetear modo edición si estaba activo
+    if (editMode) toggleEditMode();
 }
 
-async function recalculateWithWaypoints() {
-    if (isRecalculating) return;
-    isRecalculating = true;
+// ─── Modo edición ─────────────────────────────────────────────────────────────
+function toggleEditMode() {
+    editMode = !editMode;
+    const btnEditar = document.getElementById('btnEditarRuta');
+    btnEditar.textContent = editMode ? '✖ Salir de edición' : '✏ Editar ruta';
+    btnEditar.classList.toggle('btn-primary', editMode);
 
-    try {
+    if (editMode && rutaLinea) {
+        // Tomar puntos de la polilínea de ida y distribuirlos uniformemente
+        const puntos = rutaLinea.getLatLngs();
+        const MAX_WP = 8;
+        const step   = Math.max(1, Math.ceil(puntos.length / (MAX_WP + 1)));
 
-        if (!origenCoords || !destinoCoords) {
-            console.warn("Faltan origen o destino");
-            return;
+        for (let i = step; i < puntos.length - 1; i += step) {
+            const punto = puntos[i];
+            const mk = L.marker(punto, {
+                draggable: true,
+                icon: L.divIcon({
+                    html: '<div style="width:14px;height:14px;background:#f59e0b;border:2px solid white;border-radius:50%;cursor:grab;"></div>',
+                    iconSize: [14, 14],
+                    iconAnchor: [7, 7]
+                })
+            }).addTo(map);
+
+            mk.on('dragend', function() {
+                // Al soltar un waypoint se recalcula automáticamente
+                safeRecalculate();
+            });
+
+            waypointMarkers.push(mk);
         }
-
-        const MAX_WAYPOINTS = 8;
-
-        let currentWaypoints = waypointMarkers.length 
-            ? waypointMarkers.map(m => m.getLatLng()) 
-            : waypoints.filter(Boolean);
-
-        // limitar cantidad
-        if (currentWaypoints.length > MAX_WAYPOINTS) {
-            currentWaypoints = currentWaypoints.slice(0, MAX_WAYPOINTS);
-        }
-
-        const pts = [origenCoords].concat(currentWaypoints).concat([destinoCoords]);
-
-        const validPts = pts.filter(p =>
-            p && typeof p.lat === 'number' && typeof p.lng === 'number'
-        );
-
-        if (validPts.length < 2) {
-            console.warn('No hay puntos válidos');
-            return;
-        }
-
-        const coordsStr = validPts.map(p => `${p.lng},${p.lat}`).join(';');
-
-        if (!coordsStr || coordsStr.includes("undefined") || coordsStr.includes("NaN")) {
-            alert("Coordenadas inválidas");
-            return;
-        }
-
-        const url = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson`;
-
-        const res = await fetch(url, {
-            headers: { Accept: 'application/json' }
-        });
-
-        if (!res.ok) throw new Error(`OSRM error ${res.status}`);
-
-        const data = await res.json();
-
-        const route = data.routes[0];
-        const idaCoords = route.geometry.coordinates.map(c => [c[1], c[0]]);
-
-        if (rutaLinea) map.removeLayer(rutaLinea);
-        rutaLinea = L.polyline(idaCoords, {
-            color: '#0ea5e9',
-            weight: 5,
-            opacity: 0.8
-        }).addTo(map);
-
-        document.getElementById('coordenadas_ida').value = JSON.stringify(idaCoords);
-
-        // 🔁 RUTA VUELTA
-        const reverseWaypoints = currentWaypoints.slice().reverse();
-        const reversePts = [destinoCoords].concat(reverseWaypoints).concat([origenCoords]);
-
-        const reverseValidPts = reversePts.filter(p =>
-            p && typeof p.lat === 'number' && typeof p.lng === 'number'
-        );
-
-        const reverseCoordsStr = reverseValidPts.map(p => `${p.lng},${p.lat}`).join(';');
-
-        const reverseUrl = `https://router.project-osrm.org/route/v1/driving/${reverseCoordsStr}?overview=full&geometries=geojson`;
-
-        const reverseRes = await fetch(reverseUrl, {
-            headers: { Accept: 'application/json' }
-        });
-
-        if (!reverseRes.ok) throw new Error(`Reverse error ${reverseRes.status}`);
-
-        const reverseData = await reverseRes.json();
-
-        const reverseRoute = reverseData.routes[0];
-        const vueltaCoords = reverseRoute.geometry.coordinates.map(c => [c[1], c[0]]);
-
-        if (rutaVueltaLinea) map.removeLayer(rutaVueltaLinea);
-        rutaVueltaLinea = L.polyline(vueltaCoords, {
-            color: '#7c3aed',
-            weight: 4,
-            opacity: 0.6,
-            dashArray: '10, 10'
-        }).addTo(map);
-
-        mostrarInformacionRuta(
-            {
-                duracion: Math.round(route.duration / 60),
-                distancia: (route.distance / 1000).toFixed(1)
-            },
-            {
-                duracion: Math.round(reverseRoute.duration / 60),
-                distancia: (reverseRoute.distance / 1000).toFixed(1)
-            }
-        );
-
-    } catch (err) {
-        console.error("Error en recálculo:", err);
-        alert("Error al recalcular la ruta");
-    } finally {
-        isRecalculating = false; // 🔥 CLAVE
+    } else {
+        // Al salir del modo edición quitamos los markers intermedios
+        limpiarWaypoints();
     }
 }
-let recalcTimeout = null;
 
-function safeRecalculate() {
-    clearTimeout(recalcTimeout);
-    recalcTimeout = setTimeout(() => {
-        recalculateWithWaypoints();
-    }, 1200); // 1.2 segundos
-}
-
+// ─── DOMContentLoaded ─────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
     initMap();
-    
-    const btnEditar = document.getElementById('btnEditarRuta');
-    const btnRecalc = document.getElementById('btnRecalcRuta');
-    
-    if (btnEditar) {
-        btnEditar.addEventListener('click', function() {
-            editMode = !editMode;
-            this.textContent = editMode ? 'Salir edición' : 'Editar ruta';
-            this.classList.toggle('btn-primary', editMode);
-            if (editMode && rutaLinea) {
-                const puntos = rutaLinea.getLatLngs();
-                const step = Math.ceil(puntos.length / 8); // máximo 8 puntos
+    habilitarControles(false);
 
-                for (let i = step; i < puntos.length - 1; i += step) {
-                    const punto = puntos[i];
-
-                    const mk = L.marker(punto, { draggable: true }).addTo(map);
-
-                    mk.on('dragend', function(e) {
-                        waypoints[i] = e.target.getLatLng();
-                        recalculateWithWaypoints();
-                    });
-
-                    waypointMarkers.push(mk);
-                    waypoints.push(punto);
-                }   
-            } else {
-                waypointMarkers.forEach(m => map.removeLayer(m));
-                waypointMarkers = [];
-                waypoints = [];
-            }
-        });
-    }
-    
-    if (btnRecalc) {
-        btnRecalc.addEventListener('click', recalculateWithWaypoints);
-    }
+    document.getElementById('btnEditarRuta').addEventListener('click', toggleEditMode);
+    document.getElementById('btnRecalcRuta').addEventListener('click', recalcularConWaypoints);
 });
 </script>
 {% endblock %}
